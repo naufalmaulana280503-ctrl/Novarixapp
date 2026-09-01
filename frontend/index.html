@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Novarix</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Keep raw runtime details out of production builds.
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.addEventListener('error', function (e) {
+        try {
+          var overlay = document.getElementById('__dev_error_overlay__')
+          if (!overlay) {
+            overlay = document.createElement('div')
+            overlay.id = '__dev_error_overlay__'
+            overlay.style.position = 'fixed'
+            overlay.style.left = '0'
+            overlay.style.top = '0'
+            overlay.style.right = '0'
+            overlay.style.padding = '12px'
+            overlay.style.background = 'rgba(255,16,16,0.92)'
+            overlay.style.color = '#fff'
+            overlay.style.zIndex = '999999'
+            overlay.style.fontFamily = 'monospace'
+            overlay.style.whiteSpace = 'pre-wrap'
+            overlay.style.maxHeight = '40vh'
+            overlay.style.overflow = 'auto'
+            document.body.appendChild(overlay)
+          }
+          overlay.textContent = 'Runtime Error: ' + (e && e.error && e.error.stack ? e.error.stack : e.message || String(e))
+        } catch (x) { /* ignore */ }
+      })
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.addEventListener('unhandledrejection', function (ev) {
+        try {
+          var overlay = document.getElementById('__dev_error_overlay__')
+          if (!overlay) {
+            overlay = document.createElement('div')
+            overlay.id = '__dev_error_overlay__'
+            overlay.style.position = 'fixed'
+            overlay.style.left = '0'
+            overlay.style.top = '0'
+            overlay.style.right = '0'
+            overlay.style.padding = '12px'
+            overlay.style.background = 'rgba(255,16,16,0.92)'
+            overlay.style.color = '#fff'
+            overlay.style.zIndex = '999999'
+            overlay.style.fontFamily = 'monospace'
+            overlay.style.whiteSpace = 'pre-wrap'
+            overlay.style.maxHeight = '40vh'
+            overlay.style.overflow = 'auto'
+            document.body.appendChild(overlay)
+          }
+          overlay.textContent = 'Unhandled Rejection: ' + (ev && ev.reason ? (ev.reason.stack || ev.reason.message || String(ev.reason)) : String(ev))
+        } catch (x) { /* ignore */ }
+      })
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,70 @@
+[EMAIL] email konfirmasi gagal: Email belum dikonfigurasi. Isi EMAIL_HOST, EMAIL_USER dan EMAIL_PASS (Gmail App Password) di backend/.env untuk mengaktifkan email konfirmasi.
+Get feed error: error: relation "post_reposts" does not exist
+    at C:\laragon\www\Novarix\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.query (C:\laragon\www\Novarix\backend\src\models\db.js:164:22)
+    at async getFeed (C:\laragon\www\Novarix\backend\src\controllers\postsController.js:266:20) {
+  length: 112,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '304',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+Get user posts error: error: relation "post_reposts" does not exist
+    at C:\laragon\www\Novarix\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.query (C:\laragon\www\Novarix\backend\src\models\db.js:164:22)
+    at async getUserPosts (C:\laragon\www\Novarix\backend\src\controllers\postsController.js:364:20) {
+  length: 112,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '159',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+Get feed error: error: relation "post_reposts" does not exist
+    at C:\laragon\www\Novarix\backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.query (C:\laragon\www\Novarix\backend\src\models\db.js:164:22)
+    at async getFeed (C:\laragon\www\Novarix\backend\src\controllers\postsController.js:266:20) {
+  length: 112,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '304',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}

@@ -1,0 +1,30 @@
+:root{
+  --shadow-dark: 0 6px 18px rgba(2,6,23,0.6);
+}
+
+.verified-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  flex:0 0 auto;
+  margin:0;
+  vertical-align:middle;
+  box-shadow: var(--shadow-dark);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  -webkit-user-select: none; user-select: none;
+}
+
+.verified-badge:hover{
+  transform: translateY(-3px) scale(1.05);
+  filter: brightness(1.05);
+}
+
+/* tier colors */
+.verified-badge--blue{ background-color: #1D9BF0; }
+.verified-badge--gold{ background-color: #F59E0B; }
+.verified-badge--purple{ background-color: #0891b2; }
+
+/* ensure good contrast in explicit .light theme */
+.light .verified-badge{ box-shadow: 0 4px 10px rgba(16,24,40,0.12); }
+

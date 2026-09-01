@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="planetGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" style="stop-color:#a5b4fc;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#312e81;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.9" />
+      <stop offset="25%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#d97706;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#f59e0b;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.7" />
+    </linearGradient>
+    <linearGradient id="ringBack" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.5" />
+      <stop offset="50%" style="stop-color:#b45309;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.4" />
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="100" cy="100" rx="85" ry="20" fill="none" stroke="url(#ringBack)" stroke-width="12" transform="rotate(-20 100 100)"/>
+
+  <circle cx="100" cy="100" r="55" fill="url(#planetGrad)"/>
+
+  <ellipse cx="100" cy="100" rx="85" ry="20" fill="none" stroke="url(#ringGrad)" stroke-width="12" transform="rotate(-20 100 100)"/>
+
+  <ellipse cx="100" cy="100" rx="58" ry="55" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2" transform="rotate(-20 100 100)"/>
+
+  <ellipse cx="100" cy="100" rx="48" ry="45" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" transform="rotate(15 100 100)"/>
+</svg>
