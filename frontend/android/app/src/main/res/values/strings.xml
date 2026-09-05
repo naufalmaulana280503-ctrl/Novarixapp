@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Novarix</string>
+    <string name="title_activity_main">Novarix</string>
+    <string name="package_name">com.novarix.app</string>
+    <string name="custom_url_scheme">com.novarix.app</string>
+</resources>

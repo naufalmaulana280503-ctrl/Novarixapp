@@ -14,10 +14,12 @@ if (IS_PRODUCTION && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET wajib dikonfigurasi di production');
 }
 const DEFAULT_FRONTEND_ORIGIN = 'https://inspiring-education-production-7521.up.railway.app';
+const DEFAULT_MOBILE_ORIGINS = ['capacitor://localhost', 'http://localhost', 'https://localhost'];
 const PRODUCTION_ORIGINS = String(process.env.CORS_ORIGINS || DEFAULT_FRONTEND_ORIGIN)
   .split(',')
   .map((origin) => origin.trim().replace(/\/+$/, ''))
-  .filter(Boolean);
+  .filter(Boolean)
+  .concat(DEFAULT_MOBILE_ORIGINS);
 
 // Any loopback origin is allowed in development so the app works no matter
 // whether it is opened via localhost, 127.0.0.1 or [::1], and on any dev port.
