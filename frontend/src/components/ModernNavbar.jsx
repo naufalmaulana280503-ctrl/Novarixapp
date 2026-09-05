@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../services/api'
 import supabase from '../services/supabase'
 import { Bell, Mail, X } from 'lucide-react'
+import NotificationCenter from './NotificationCenter'
 
 const ModernNavbar = ({ transparent = false }) => {
   const { currentUser } = useAuth()
@@ -156,11 +157,7 @@ const ModernNavbar = ({ transparent = false }) => {
 
       <div style={styles.right}>
         <div style={styles.actionWrap}>
-          <button type="button" onClick={() => { setNotificationsOpen(value => !value); setMessagesOpen(false) }} style={styles.iconButton} title="Notifications" aria-label="Notifications"><Bell size={20} strokeWidth={2} /></button>
-          {notificationsOpen && <div style={styles.dropdown}>
-            <div style={styles.dropdownHeader}><strong>Notifikasi</strong><button type="button" onClick={() => setNotificationsOpen(false)} style={styles.closeButton} title="Tutup"><X size={15} /></button></div>
-            <div style={styles.emptyDropdown}>Belum ada notifikasi baru</div>
-          </div>}
+          <NotificationCenter />
         </div>
         <div style={styles.actionWrap}>
           <button type="button" onClick={() => { setMessagesOpen(value => !value); setNotificationsOpen(false) }} style={styles.iconButton} title="Pesan" aria-label="Pesan"><Mail size={20} strokeWidth={2} /></button>

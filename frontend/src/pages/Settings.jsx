@@ -2,21 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { userSettingsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../context/LanguageContext'
-
-const IconAppearance = ({size=20}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v18M3 12h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-)
-const IconSecurity = ({size=20}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l7 4v5c0 5-3 9-7 11-4-2-7-6-7-11V6l7-4z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-)
-const IconVIP = ({size=20}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l2.6 6.4L21 9l-5 3.6L17.2 21 12 17.8 6.8 21 8 12.6 3 9l6.4-0.6L12 2z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/></svg>
-)
-const IconLock = ({size=16}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 11V8a4 4 0 118 0v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-)
+import {
+  Globe, Shield, Bell, Palette, Lock, Eye, Download,
+  ChevronRight, Info, Heart, MessageCircle, UserPlus,
+  Clock, Trash2, Flag, HelpCircle, Smartphone
+} from 'lucide-react'
 
 export default function Settings() {
   const { currentUser, setTheme } = useAuth()
@@ -27,6 +19,12 @@ export default function Settings() {
   const [antiSpy, setAntiSpy] = useState(false)
   const [modeOffline, setModeOffline] = useState(false)
   const [isVIP, setIsVIP] = useState(false)
+  const [pushNotif, setPushNotif] = useState(true)
+  const [emailNotif, setEmailNotif] = useState(false)
+  const [privateAccount, setPrivateAccount] = useState(false)
+  const [dataSaver, setDataSaver] = useState(false)
+  const [autoplay, setAutoplay] = useState(true)
+  const navigate = useNavigate()
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -41,7 +39,6 @@ export default function Settings() {
         setAppearanceDark(settings.appearance !== 'light')
         setAntiSpy(!!settings.anti_spy)
         setModeOffline(!!settings.mode_offline)
-        // roles can be in metadata.roles or in app_metadata
         setIsVIP(currentUser?.role === 'elite' || currentUser?.is_premium === true)
       } catch (err) {
         console.error('Failed to load user', err)
@@ -54,9 +51,8 @@ export default function Settings() {
   }, [currentUser])
 
   const updateUserSettings = async (patch) => {
-    // optimistic update already applied by caller
     try {
-      const { data } = await userSettingsApi.update(patch)
+      await userSettingsApi.update(patch)
       setUser(currentUser)
       return true
     } catch (err) {
@@ -71,7 +67,6 @@ export default function Settings() {
     setAppearanceDark(next)
     addToast({ type: 'success', text: next ? 'Mode gelap aktif' : 'Mode terang aktif' })
     await updateUserSettings({ appearance: next ? 'dark' : 'light' })
-    // apply theme classes to root so CSS variables control colors
     setTheme(next ? 'dark' : 'light')
   }
 
@@ -82,101 +77,334 @@ export default function Settings() {
     await updateUserSettings({ anti_spy: next })
   }
 
-  const toggleModeOffline = async () => {
-    if (!isVIP) {
-      addToast({ type: 'info', text: 'Mode Offline khusus VIP' })
-      return
-    }
-    const next = !modeOffline
-    setModeOffline(next)
-    addToast({ type: 'success', text: next ? 'Mode Offline aktif' : 'Mode Offline nonaktif' })
-    await updateUserSettings({ mode_offline: next })
+  const togglePrivateAccount = async () => {
+    const next = !privateAccount
+    setPrivateAccount(next)
+    addToast({ type: 'success', text: next ? 'Akun privat aktif' : 'Akun publik aktif' })
   }
 
-  if (loading) return <div style={pageStyles.container}><div style={pageStyles.card}>Loading settings...</div></div>
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 40, height: 40, border: '4px solid var(--bg-tertiary)', borderTopColor: '#0891b2', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    </div>
+  )
 
   return (
-    <div style={pageStyles.container}>
-      <div style={pageStyles.card}>
-        <h2 style={pageStyles.title}>Settings</h2>
-        <p style={pageStyles.subtitle}>Manage your account and app preferences</p>
-
-        <div style={pageStyles.group}>
-          <div style={pageStyles.groupHeader}><strong>Account</strong></div>
-          <div style={pageStyles.row}>
-            <div style={pageStyles.rowLeft}><div style={pageStyles.icon}><IconVIP /></div><div><div style={pageStyles.rowTitle}>Profile</div><div style={pageStyles.rowSubtitle}>Manage your account</div></div></div>
-            <div style={pageStyles.rowRight}><Link to="/settings/profile" style={pageStyles.link}>Open</Link></div>
-          </div>
+    <div className="settings-page" style={styles.page}>
+      <div style={styles.container}>
+        {/* Header */}
+        <div style={styles.header}>
+          <h1 style={styles.title}>Pengaturan</h1>
+          <p style={styles.subtitle}>Kelola akun dan preferensi kamu</p>
         </div>
 
-        <div style={pageStyles.group}>
-          <div style={pageStyles.groupHeader}><strong>Appearance</strong></div>
-          <div style={pageStyles.row}>
-            <div style={pageStyles.rowLeft}><div style={pageStyles.icon}><IconAppearance /></div><div><div style={pageStyles.rowTitle}>Theme</div><div style={pageStyles.rowSubtitle}>Toggle light/dark mode</div></div></div>
-            <div style={pageStyles.rowRight}><label style={pageStyles.switch}><input type="checkbox" checked={appearanceDark} onChange={toggleAppearance} /><span style={pageStyles.slider}></span></label></div>
-          </div>
-        </div>
-
-        <div style={pageStyles.group}>
-          <div style={pageStyles.groupHeader}><strong>Security & Privacy</strong></div>
-          <div style={pageStyles.row}>
-            <div style={pageStyles.rowLeft}><div style={pageStyles.icon}><IconSecurity /></div><div><div style={pageStyles.rowTitle}>Anti-Spy Mode</div><div style={pageStyles.rowSubtitle}>Reduce sensitive info on screen</div></div></div>
-            <div style={pageStyles.rowRight}><label style={pageStyles.switch}><input type="checkbox" checked={antiSpy} onChange={toggleAntiSpy} /><span style={pageStyles.slider}></span></label></div>
-          </div>
-
-          <div style={pageStyles.row}>
-            <div style={pageStyles.rowLeft}><div style={pageStyles.icon}><IconVIP /></div><div><div style={pageStyles.rowTitle}>Mode Offline <span style={pageStyles.vipBadge}>VIP</span></div><div style={pageStyles.rowSubtitle}>Appear offline to others</div></div></div>
-            <div style={pageStyles.rowRight}>
-              {isVIP ? (
-                <label style={pageStyles.switch}><input type="checkbox" checked={modeOffline} onChange={toggleModeOffline} /><span style={pageStyles.slider}></span></label>
-              ) : (
-                <button style={pageStyles.lockBtn} title="VIP required" onClick={() => addToast({ type: 'info', text: 'Mode Offline khusus VIP' })}><IconLock /></button>
-              )}
+        {/* Account Section */}
+        <div className="settings-section">
+          <div className="settings-section-title">Akun & Keamanan</div>
+          <Link to="/settings/profile" className="settings-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><UserPlus size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Profil</h4>
+                <p>Edit nama, bio, foto profil</p>
+              </div>
             </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </Link>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Lock size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Ganti Password</h4>
+                <p>Ubah password akun kamu</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Shield size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Autentikasi Dua Faktor</h4>
+                <p>Tambahkan lapisan keamanan</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
           </div>
         </div>
 
-        <div style={pageStyles.group}>
-          <div style={pageStyles.groupHeader}><strong>{t('language')}</strong></div>
-          <div style={pageStyles.row}>
-            <div style={pageStyles.rowLeft}><div style={pageStyles.icon}><IconAppearance /></div><div><div style={pageStyles.rowTitle}>{t('language')}</div><div style={pageStyles.rowSubtitle}>Pilih bahasa untuk seluruh aplikasi</div></div></div>
-            <select value={language} onChange={(event) => setLanguage(event.target.value)} style={pageStyles.languageSelect}>
-              {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+        {/* Privacy Section */}
+        <div className="settings-section">
+          <div className="settings-section-title">Privasi</div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Eye size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Akun Privat</h4>
+                <p>Hanya pengikut yang bisa melihat postingan</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={privateAccount} onChange={togglePrivateAccount} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Shield size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Anti-Spy Mode</h4>
+                <p>Sembunyikan info sensitif di layar</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={antiSpy} onChange={toggleAntiSpy} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Lock size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Akun yang Diblokir</h4>
+                <p>Kelola daftar blokir</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+        </div>
+
+        {/* Notifications Section */}
+        <div className="settings-section">
+          <div className="settings-section-title">Notifikasi & Aktivitas</div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Bell size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Notifikasi Push</h4>
+                <p>Notifikasi di perangkat</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={pushNotif} onChange={() => setPushNotif(!pushNotif)} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Globe size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Notifikasi Email</h4>
+                <p>Update via email</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={emailNotif} onChange={() => setEmailNotif(!emailNotif)} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Clock size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Riwayat Aktivitas</h4>
+                <p>Lihat aktivitas terakhir</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+        </div>
+
+        {/* Content Preferences */}
+        <div className="settings-section">
+          <div className="settings-section-title">Preferensi Konten</div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Heart size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Konten yang Disukai</h4>
+                <p>Lihat semua postingan yang kamu sukai</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Download size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Penyimpanan & Data</h4>
+                <p>Kelola penggunaan data</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Smartphone size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Hemat Data</h4>
+                <p>Kurangi penggunaan data seluler</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={dataSaver} onChange={() => setDataSaver(!dataSaver)} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Globe size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Putar Otomatis</h4>
+                <p>Putar video otomatis di feed</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={autoplay} onChange={() => setAutoplay(!autoplay)} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+        </div>
+
+        {/* Appearance Section */}
+        <div className="settings-section">
+          <div className="settings-section-title">Tampilan</div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Palette size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Tema</h4>
+                <p>{appearanceDark ? 'Mode Gelap' : 'Mode Terang'}</p>
+              </div>
+            </div>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={appearanceDark} onChange={toggleAppearance} />
+              <span className="toggle-slider" />
+            </label>
+          </div>
+        </div>
+
+        {/* Language Section */}
+        <div className="settings-section">
+          <div className="settings-section-title">Bahasa</div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Globe size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Bahasa Aplikasi</h4>
+                <p>Pilih bahasa tampilan</p>
+              </div>
+            </div>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              style={styles.select}
+            >
+              {languages.map(([code, label]) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
             </select>
           </div>
         </div>
 
-        <div style={pageStyles.group}>
-          <div style={pageStyles.groupHeader}><strong>App</strong></div>
-          <div style={pageStyles.row}>
-            <div style={pageStyles.rowLeft}><div style={pageStyles.icon}><IconAppearance /></div><div><div style={pageStyles.rowTitle}>About</div><div style={pageStyles.rowSubtitle}>App version and info</div></div></div>
-            <div style={pageStyles.rowRight}><span style={pageStyles.muted}>v1.0.0</span></div>
+        {/* Support & About */}
+        <div className="settings-section">
+          <div className="settings-section-title">Bantuan & Lainnya</div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><HelpCircle size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Bantuan</h4>
+                <p>Pusat bantuan & FAQ</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Flag size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Laporkan Masalah</h4>
+                <p>Kirim laporan bug</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-icon"><Info size={20} /></div>
+              <div className="settings-row-text">
+                <h4>Tentang Novarix</h4>
+                <p>Versi 1.0.0</p>
+              </div>
+            </div>
+            <div className="settings-row-right"><ChevronRight size={18} /></div>
           </div>
         </div>
 
+        {/* Logout */}
+        <div style={{ padding: '24px 0', paddingBottom: 100 }}>
+          <button
+            onClick={() => {
+              localStorage.clear()
+              window.location.href = '/login'
+            }}
+            style={styles.logoutBtn}
+          >
+            Keluar
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
-const pageStyles = {
-  container: { padding: '20px max(12px, 3vw)', display:'flex', justifyContent:'center', width: '100%' },
-  card: { width: 'min(720px, 100%)', background: 'var(--bg-secondary)', padding: 'clamp(14px, 3vw, 20px)', borderRadius: 12, border: '1px solid var(--border-color)', color: 'var(--text-primary)' },
-  title: { margin: 0 },
-  subtitle: { color: 'var(--text-secondary)', marginTop: 4, marginBottom: 12 },
-  group: { marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-color)' },
-  groupHeader: { marginBottom: 8, color: 'var(--text-secondary)', fontSize: 13 },
-  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' },
-  rowLeft: { display: 'flex', gap: 12, alignItems: 'center' },
-  icon: { width: 44, height: 44, borderRadius: 10, background: 'var(--pill-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  rowTitle: { fontWeight: 700 },
-  rowSubtitle: { color: 'var(--text-secondary)', fontSize: 13 },
-  rowRight: {},
-  link: { color: '#0891b2', textDecoration: 'none', fontWeight: 700 },
-  switch: { position: 'relative', display: 'inline-block', width: 52, height: 30 },
-  slider: { position: 'absolute', cursor: 'pointer', top: 4, left: 4, right: 4, bottom: 4, backgroundColor: 'var(--bg-tertiary)', borderRadius: 20, transition: '0.2s', display: 'block' },
-  vipBadge: { background: 'linear-gradient(90deg,#F59E0B,#F97316)', padding: '2px 6px', borderRadius: 6, color: '#000', fontWeight: 700, fontSize: 11, marginLeft: 8 },
-  lockBtn: { background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: 8, borderRadius: 8, color: '#9aa0c7', cursor: 'pointer' },
-  muted: { color: '#9aa0c7' },
-  languageSelect: { maxWidth: 180, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '8px' },
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background: 'var(--bg-primary)',
+    paddingBottom: 80,
+  },
+  container: {
+    maxWidth: 600,
+    margin: '0 auto',
+    padding: '0 16px',
+  },
+  header: {
+    padding: '24px 0 16px',
+    borderBottom: '1px solid var(--border-color)',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 800,
+    margin: 0,
+    color: 'var(--text-primary)',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: 'var(--text-secondary)',
+    marginTop: 4,
+  },
+  select: {
+    maxWidth: 160,
+    borderRadius: 8,
+    border: '1px solid var(--border-color)',
+    background: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    padding: '8px 10px',
+    fontSize: 13,
+  },
+  logoutBtn: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: 12,
+    border: '1px solid rgba(239,68,68,0.3)',
+    background: 'rgba(239,68,68,0.1)',
+    color: '#ef4444',
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
 }

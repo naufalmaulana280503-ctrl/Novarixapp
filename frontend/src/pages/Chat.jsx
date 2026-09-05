@@ -187,6 +187,8 @@ const Chat = () => {
   const [editingMessage, setEditingMessage] = useState(null)
 
   const [chatTab, setChatTab] = useState('dms')
+  const [groupsList, setGroupsList] = useState([])
+  const [groupsQuery, setGroupsQuery] = useState('')
 
   // Voice recording
   const [isRecording, setIsRecording] = useState(false)
@@ -219,6 +221,7 @@ const Chat = () => {
   // ============ FETCH CONVERSATIONS ON MOUNT ============
   useEffect(() => {
     fetchConversations()
+    fetchGroupsList()
     if (currentUser?.id) {
       try {
         signaling.emit('user:join', {
@@ -578,6 +581,19 @@ const Chat = () => {
     navigate(`/chat/${convUserId}`)
   }
 
+  const fetchGroupsList = async () => {
+    try {
+      const res = await api.get('/groups')
+      setGroupsList(res.data.groups || [])
+    } catch (err) { console.error('fetch groups', err) }
+  }
+
+  const filteredGroups = groupsList.filter(g => {
+    if (!groupsQuery.trim()) return true
+    const q = groupsQuery.toLowerCase()
+    return (g.name || '').toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q)
+  })
+
   // ============ FILTER CONVERSATIONS BY SEARCH ============
   const filteredConversations = conversations.filter(c => {
     if (!query.trim()) return true
@@ -811,7 +827,7 @@ const Chat = () => {
   return (
     <div className="chat-page h-screen w-full bg-[#0b0b0e] text-white flex overflow-hidden">
 
-      <aside className={`chat-sidebar ${selectedConversation ? 'chat-sidebar--hidden-mobile' : ''} w-full sm:w-[340px] shrink-0 h-full border-r border-neutral-800/70 bg-[#101014] flex flex-col`}>
+      <aside className={`chat-sidebar ${selectedConversation ? 'chat-sidebar--hidden-mobile' : ''} w-full sm:w-[340px] shrink-0 h-full border-r border-neutral-800/70 bg-[#101014] flex flex-col relative`}>
         <div className="px-4 py-4 border-b border-neutral-800/70">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -892,19 +908,74 @@ const Chat = () => {
 
         <div className="flex-1 overflow-y-auto p-2">
           {chatTab === 'groups' ? (
-            <div className="p-8 text-center text-neutral-500 text-sm">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4">
-                <Users className="w-8 h-8 text-sky-400" />
+            <>
+              {/* Search groups */}
+              <div className="px-2 mb-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <input
+                    value={groupsQuery}
+                    onChange={(e) => setGroupsQuery(e.target.value)}
+                    placeholder="Cari grup..."
+                    className="w-full bg-[#1a1a20] border border-neutral-800 rounded-xl pl-9 pr-3 py-2 text-sm text-neutral-200 placeholder-neutral-500 outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/10 transition"
+                  />
+                </div>
               </div>
-              <p className="text-neutral-300 font-semibold mb-1">Grup Chat</p>
-              <p className="mb-5">Belum ada grup. Buat grup untuk ngobrol bareng temen-temen!</p>
+              {filteredGroups.length === 0 ? (
+                <div className="p-8 text-center text-neutral-500 text-sm">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4">
+                    <Users className="w-8 h-8 text-sky-400" />
+                  </div>
+                  <p className="text-neutral-300 font-semibold mb-1">Grup Chat</p>
+                  <p className="mb-5">{groupsQuery ? 'Tidak ada grup ditemukan' : 'Belum ada grup. Buat grup untuk ngobrol bareng temen-temen!'}</p>
+                  {!groupsQuery && (
+                    <button
+                      onClick={() => navigate('/groups')}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl nova-gradient-bg nova-animate-gradient text-white text-xs font-semibold"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Buat Grup
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <ul className="space-y-0.5 px-1">
+                  {filteredGroups.map((g) => (
+                    <li key={g.id}>
+                      <button
+                        onClick={() => navigate(`/groups/${g.id}`)}
+                        className="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition border border-transparent"
+                      >
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 via-emerald-500 to-green-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                          {(g.name || 'G').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <h3 className="font-semibold text-sm truncate pr-2">{g.name}</h3>
+                            <span className="text-[10px] text-neutral-500 shrink-0">{g.lastMessageAt ? fmtTime(g.lastMessageAt) : ''}</span>
+                          </div>
+                          <p className="text-xs text-neutral-400 truncate">
+                            {g.lastMessage || `👥 ${g.memberCount || 0} anggota`}
+                          </p>
+                        </div>
+                        {g.unreadCount > 0 && (
+                          <span className="shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full nova-gradient-bg text-[10px] font-bold text-white">
+                            {g.unreadCount}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* FAB for create group */}
               <button
                 onClick={() => navigate('/groups')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl nova-gradient-bg nova-animate-gradient text-white text-xs font-semibold"
+                className="absolute bottom-6 right-5 w-12 h-12 rounded-2xl nova-gradient-bg nova-animate-gradient flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all z-10"
+                title="Buat grup baru"
               >
-                <Plus className="w-3.5 h-3.5" /> Buat Grup
+                <Plus className="w-5 h-5 text-white" strokeWidth={2.5} />
               </button>
-            </div>
+            </>
           ) : chatTab === 'calls' ? (
             <div className="p-8 text-center text-neutral-500 text-sm">
               <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">

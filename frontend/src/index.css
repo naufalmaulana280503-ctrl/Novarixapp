@@ -284,6 +284,22 @@ img, video, canvas, svg {
   max-width: 100%;
 }
 
+#live-preview {
+  position: relative;
+  background: #000;
+  min-height: 200px;
+}
+
+#live-preview canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  display: block;
+}
+
 button, input, textarea, select {
   min-width: 0;
 }
@@ -388,6 +404,332 @@ input::placeholder, textarea::placeholder {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* ============================================================
+   STORIES ROW — Instagram-style gradient rings
+   ============================================================ */
+
+.stories-row {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 0;
+}
+
+.stories-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 0 16px;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stories-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.stories-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 72px;
+}
+
+.stories-avatar-ring {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stories-ring-unseen {
+  background: linear-gradient(135deg, #f97316, #ef4444, #ec4899, #a855f7);
+}
+
+.stories-ring-seen {
+  background: var(--bg-tertiary);
+}
+
+.stories-ring-self {
+  background: var(--bg-tertiary);
+}
+
+.stories-avatar-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid var(--bg-primary);
+  overflow: hidden;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stories-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stories-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0891b2, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.stories-plus-badge {
+  position: absolute;
+  bottom: 22px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  border: 2px solid var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.stories-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 72px;
+}
+
+.stories-skeleton {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  animation: pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.stories-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  width: 100%;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* ============================================================
+   EXPLORE GRID — TikTok/Instagram-style
+   ============================================================ */
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px;
+}
+
+.explore-grid-item {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--bg-secondary);
+}
+
+.explore-grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.explore-grid-item:hover img {
+  transform: scale(1.05);
+}
+
+.explore-grid-item .explore-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  transition: opacity 0.2s ease;
+}
+
+.explore-grid-item:hover .explore-overlay {
+  opacity: 1;
+}
+
+.explore-grid-item.explore-wide {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+/* ============================================================
+   BOTTOM NAV — Enhanced with profile ring
+   ============================================================ */
+
+.novarix-bottom-nav .stories-nav-ring {
+  position: relative;
+}
+
+.novarix-bottom-nav .stories-nav-ring::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f97316, #ef4444, #ec4899, #a855f7);
+  z-index: -1;
+}
+
+/* ============================================================
+   SETTINGS — Instagram/TikTok-style sections
+   ============================================================ */
+
+.settings-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  margin-bottom: 8px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.settings-row:hover {
+  background: var(--bg-tertiary);
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-row-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.settings-row-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.settings-row-text h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-row-text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.settings-row-right {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ============================================================
+   TOGGLE SWITCH — Modern
+   ============================================================ */
+
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--bg-tertiary);
+  border-radius: 28px;
+  transition: 0.3s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #0891b2;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background: #fff;
 }
 
 /* ========== LOGIN SCREEN TOKENS & COMPONENTS ========== */
@@ -868,6 +1210,36 @@ input::placeholder, textarea::placeholder {
   50% { background-position: 100% 50%; }
 }
 
+/* ========== LIVE STREAM ANIMATIONS ========== */
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  50% { opacity: 1; transform: translateY(-80px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-180px) scale(0.6); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.mask-fade-b {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 100%);
+}
+
 @media (max-width: 640px) {
   .login-shell {
     align-items: flex-start;
@@ -903,4 +1275,91 @@ input::placeholder, textarea::placeholder {
     min-height: 76px;
     font-size: 12px;
   }
+}
+
+/* ================================================================
+   GROUP CHAT — WhatsApp-style responsive layout
+   ================================================================ */
+
+/* Mobile (< 640px): sidebar or chat, never both */
+@media (max-width: 639px) {
+  /* Group chat sidebar */
+  .group-sidebar--hidden { display: none !important; }
+  .group-chat--hidden { display: none !important; }
+
+  /* Group info drawer on mobile: full-screen overlay */
+  .group-info-drawer {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    z-index: 40 !important;
+  }
+}
+
+/* Desktop (≥ 640px): both panels visible side-by-side */
+@media (min-width: 640px) {
+  .group-sidebar--hidden { display: flex !important; }
+  .group-chat--hidden { display: flex !important; }
+}
+
+/* ================================================================
+   CALLS PAGE — WhatsApp-style responsive layout
+   ================================================================ */
+
+/* Mobile (< 640px): list or detail, never both */
+@media (max-width: 639px) {
+  .calls-list--hidden { display: none !important; }
+  .calls-detail--hidden { display: none !important; }
+}
+
+/* Desktop (≥ 640px): both panels visible */
+@media (min-width: 640px) {
+  .calls-list--hidden { display: flex !important; }
+  .calls-detail--hidden { display: flex !important; }
+}
+
+/* ================================================================
+   SHARED — WhatsApp-style improvements for all chat pages
+   ================================================================ */
+
+/* Smooth transitions between panels */
+.group-sidebar-aside,
+.group-chat-section,
+.calls-left-aside,
+.calls-right-section {
+  transition: opacity 150ms ease;
+}
+
+/* Mobile safe area padding for bottom nav */
+@media (max-width: 768px) {
+  .group-chat-section,
+  .calls-right-section {
+    padding-bottom: 72px !important;
+  }
+}
+
+/* Desktop: proper split-view sizing */
+@media (min-width: 640px) {
+  .group-sidebar-aside {
+    width: 380px !important;
+    max-width: 380px !important;
+    min-width: 320px !important;
+  }
+  .calls-left-aside {
+    width: 340px !important;
+    max-width: 340px !important;
+    min-width: 300px !important;
+  }
+}
+
+/* Override generic button padding reset for inline icon buttons */
+.group-chat-section button,
+.calls-right-section button,
+.calls-left-aside button {
+  padding: 0;
+  border-radius: 50%;
+}
+.group-chat-section form button,
+.calls-right-section form button {
+  border-radius: 50%;
 }

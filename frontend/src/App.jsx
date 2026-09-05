@@ -14,6 +14,7 @@ import Chat from './pages/Chat'
 import GroupChat from './pages/GroupChat'
 import AIChat from './pages/AIChat'
 import Calls from './pages/Calls'
+import Create from './pages/Create'
 import Camera from './pages/Camera'
 import Editor from './pages/Editor'
 import CreatorAds from './pages/CreatorAds'
@@ -25,6 +26,8 @@ import SettingsProfile from './pages/SettingsProfile'
 import Settings from './pages/Settings'
 import LiveStudio from './pages/LiveStudio'
 import LiveReplays from './pages/LiveReplays'
+import LiveFeed from './pages/LiveFeed'
+import LiveViewer from './pages/LiveViewer'
 import VerifiedReport from './pages/VerifiedReport'
 import { ToastProvider } from './context/ToastContext'
 import SplashScreen from './components/SplashScreen'
@@ -34,6 +37,8 @@ import AnonConfess from './pages/AnonConfess'
 import Search from './pages/Search'
 import StoryViewer from './pages/StoryViewer'
 import StoryUpload from './pages/StoryUpload'
+import SavedPosts from './pages/SavedPosts'
+import ProfileEdit from './pages/ProfileEdit'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -192,10 +197,18 @@ const App = () => {
             }
           />
           <Route
+            path="/create"
+            element={
+              <ProtectedRoute>
+                <Create />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/upload"
             element={
               <ProtectedRoute>
-                <Upload />
+                <Create />
               </ProtectedRoute>
             }
           />
@@ -373,6 +386,22 @@ const App = () => {
             }
           />
           <Route
+            path="/saved"
+            element={
+              <ProtectedRoute>
+                <SavedPosts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/edit"
+            element={
+              <ProtectedRoute>
+                <ProfileEdit />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/live/studio"
             element={
               <ProtectedRoute>
@@ -385,6 +414,22 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <LiveReplays />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/live"
+            element={
+              <ProtectedRoute>
+                <LiveFeed />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/live/watch/:streamId"
+            element={
+              <ProtectedRoute>
+                <LiveViewer />
               </ProtectedRoute>
             }
           />

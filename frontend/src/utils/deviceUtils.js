@@ -37,22 +37,12 @@ export async function detectMediaDevices() {
     const videoInputs = devices.filter((device) => device.kind === 'videoinput')
     const audioInputs = devices.filter((device) => device.kind === 'audioinput')
 
-    const frontFacing = videoInputs.filter((device) => {
-      const label = (device.label || '').toLowerCase()
-      return label.includes('front') || label.includes('selfie') || label.includes('user')
-    })
-
-    const rearFacing = videoInputs.filter((device) => {
-      const label = (device.label || '').toLowerCase()
-      return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('wide')
-    })
-
     return {
       ...profile,
       videoInputs,
       audioInputs,
-      hasFrontCamera: videoInputs.length > 0 || frontFacing.length > 0,
-      hasRearCamera: rearFacing.length > 0 || videoInputs.length > 1,
+      hasFrontCamera: videoInputs.length > 0,
+      hasRearCamera: videoInputs.length > 1 || (isMobile && videoInputs.length > 0),
       hasDualCam: videoInputs.length > 1,
       hasAudioInput: audioInputs.length > 0,
     }

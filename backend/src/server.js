@@ -89,6 +89,8 @@ app.use('/api/premium', require('./routes/premium'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/time-capsules', require('./routes/timeCapsules'));
 app.use('/api/anon-confess', require('./routes/anonConfess'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/bookmarks', require('./routes/bookmarks'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Novarix API is running' });

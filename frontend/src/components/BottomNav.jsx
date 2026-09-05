@@ -1,13 +1,13 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { Home, Search, PlusSquare, MessageCircle, UserRound, Bot } from 'lucide-react'
+import { Home, Search, PlusSquare, MessageCircle, UserRound, Bot, RadioTower } from 'lucide-react'
 
 const items = [
   { to: '/dashboard', label: 'Home', Icon: Home },
+  { to: '/live', label: 'Live', Icon: RadioTower },
   { to: '/search', label: 'Search', Icon: Search },
-  { to: '/upload', label: 'Create', Icon: PlusSquare },
+  { to: '/create', label: 'Create', Icon: PlusSquare },
   { to: '/chat', label: 'Chat', Icon: MessageCircle },
-  { to: '/ai-chat', label: 'AI', Icon: Bot },
   { to: '/profile', label: 'Profile', Icon: UserRound },
 ]
 

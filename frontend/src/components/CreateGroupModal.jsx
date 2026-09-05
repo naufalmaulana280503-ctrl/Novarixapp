@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { api } from '../services/api'
 import { useToast } from '../context/ToastContext'
+import { X, Camera, Search, UserPlus, Check } from 'lucide-react'
 
 const CreateGroupModal = ({ open, onClose, onCreated }) => {
   const { addToast } = useToast()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [admins, setAdmins] = useState([]) // array of user objects {id, displayName}
+  const [admins, setAdmins] = useState([])
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const fileRef = useRef(null)
 
   useEffect(() => {
     if (!open) reset()
@@ -36,21 +38,25 @@ const CreateGroupModal = ({ open, onClose, onCreated }) => {
     try {
       const res = await api.get(`/users/search?q=${encodeURIComponent(q)}`)
       setSearchResults(res.data.users || [])
-    } catch (e) {
-      console.error('search users', e)
-    }
+    } catch (e) { console.error('search users', e) }
   }
 
   const addAdmin = (user) => {
     if (admins.find(a => a.id === user.id)) return
     setAdmins(prev => [...prev, user])
+    setSearchQuery('')
+    setSearchResults([])
   }
   const removeAdmin = (id) => setAdmins(prev => prev.filter(a => a.id !== id))
 
   const handleCreate = async (e) => {
     e.preventDefault()
     setError(null)
-    if (!name.trim()) { setError('Group name required'); addToast({ type: 'error', text: 'Group name is required' }); return }
+    if (!name.trim()) {
+      setError('Nama grup wajib diisi')
+      addToast({ type: 'error', text: 'Nama grup wajib diisi' })
+      return
+    }
     setLoading(true)
     try {
       let avatarUrl = ''
@@ -60,18 +66,18 @@ const CreateGroupModal = ({ open, onClose, onCreated }) => {
         const upload = await api.post('/chat/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } })
         avatarUrl = upload.data?.url || ''
       }
-      const payload = { name: name.trim(), description: description.trim(), avatarUrl, admins: admins.map(a=>a.id) }
+      const payload = { name: name.trim(), description: description.trim(), avatarUrl, admins: admins.map(a => a.id) }
       const res = await api.post('/groups', payload)
       const created = res.data.group || res.data
-      addToast({ type: 'success', text: 'Group created' })
+      addToast({ type: 'success', text: 'Grup berhasil dibuat!' })
       onCreated && onCreated(created)
       onClose()
     } catch (err) {
       console.error('create group', err)
       const status = err?.response?.status
       const msg = err?.response?.data?.message || (status === 401
-        ? 'Sesi login tidak cocok dengan database Supabase. Silakan login ulang.'
-        : 'Failed to create group')
+        ? 'Sesi login tidak cocok. Silakan login ulang.'
+        : 'Gagal membuat grup')
       setError(msg)
       addToast({ type: 'error', text: msg })
     } finally {
@@ -80,72 +86,100 @@ const CreateGroupModal = ({ open, onClose, onCreated }) => {
   }
 
   if (!open) return null
+
   return (
-    <div style={overlay}>
-      <div style={modal}>
-        <h3 style={{marginTop:0}}>Create Group</h3>
-        <form onSubmit={handleCreate} style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{display:'flex', alignItems:'center', gap:12}}>
-            <div style={{width:64, height:64, borderRadius:'50%', overflow:'hidden', background:'#202024', border:'1px solid #383842', display:'flex', alignItems:'center', justifyContent:'center', color:'#a1a1aa', fontWeight:700}}>
-              {avatarPreview ? <img src={avatarPreview} alt="Group preview" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : 'G'}
-            </div>
-            <label style={{cursor:'pointer', padding:'8px 12px', borderRadius:8, background:'#202024', color:'#fff'}}>
-              Add group photo
-              <input type="file" accept="image/jpeg,image/png,image/webp" style={{display:'none'}} onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                setAvatarFile(file)
-                setAvatarPreview(URL.createObjectURL(file))
-              }} />
-            </label>
+    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-[420px] rounded-2xl bg-[#111b21] border border-[#222d34] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="h-[60px] px-4 flex items-center justify-between bg-[#202c33] shrink-0">
+          <div className="flex items-center gap-3">
+            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-[#aebac1]">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="font-bold text-[17px] text-[#e9edef]">Grup Baru</h3>
           </div>
-          <label style={labelStyle}>
-            Name
-            <input value={name} onChange={(e)=>setName(e.target.value)} style={inputStyle} placeholder="Group name" />
-          </label>
-          <label style={labelStyle}>
-            Description
-            <textarea value={description} onChange={(e)=>setDescription(e.target.value)} style={{...inputStyle, minHeight:80}} placeholder="What is this group about?" />
-          </label>
-          <div>
-            <label style={{color:'#cbd5e1', fontSize:13}}>Add Admins (optional)</label>
-            <div style={{display:'flex',gap:8, marginTop:8}}>
-              <input value={searchQuery} onChange={(e)=>handleSearch(e.target.value)} placeholder="Search users by name or @username" style={inputStyle} />
-            </div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap', marginTop:8}}>
-              {admins.map(a => (
-                <div key={a.id} style={{padding:'6px 10px', background:'#202020', borderRadius:999}}>
-                  {a.displayName || a.username}
-                  <button type="button" onClick={()=>removeAdmin(a.id)} style={{marginLeft:8, background:'transparent', color:'#ef4444', border:'none'}}>✕</button>
+        </div>
+
+        <form onSubmit={handleCreate} className="p-4 space-y-4">
+          <div className="flex flex-col items-center">
+            <button type="button" onClick={() => fileRef.current?.click()} className="relative w-20 h-20 rounded-full bg-[#202c33] border-2 border-dashed border-[#00a884]/40 flex items-center justify-center overflow-hidden hover:border-[#00a884] transition-colors group">
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="Group" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <Camera className="w-6 h-6 text-[#8696a0] group-hover:text-[#00a884] transition-colors" />
+                  <span className="text-[10px] text-[#8696a0] group-hover:text-[#00a884]">Foto</span>
                 </div>
-              ))}
+              )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Camera className="w-6 h-6 text-white" />
+              </div>
+            </button>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)) } }} />
+            <p className="text-[12px] text-[#8696a0] mt-2">Ketuk untuk tambah foto grup</p>
+          </div>
+
+          <div>
+            <label className="text-[13px] font-semibold text-[#8696a0] mb-1.5 block">Nama Grup</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Masukkan nama grup..." className="w-full bg-[#202c33] rounded-lg px-4 py-2.5 text-[15px] text-[#e9edef] placeholder:text-[#8696a0] outline-none border border-transparent focus:border-[#00a884] transition-colors" maxLength={50} autoFocus />
+          </div>
+
+          <div>
+            <label className="text-[13px] font-semibold text-[#8696a0] mb-1.5 block">Deskripsi <span className="font-normal opacity-60">(opsional)</span></label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Tentang grup ini..." className="w-full bg-[#202c33] rounded-lg px-4 py-2.5 text-[14px] text-[#e9edef] placeholder:text-[#8696a0] outline-none border border-transparent focus:border-[#00a884] transition-colors resize-none" maxLength={200} />
+          </div>
+
+          <div>
+            <label className="text-[13px] font-semibold text-[#8696a0] mb-1.5 block">Tambah Admin <span className="font-normal opacity-60">(opsional)</span></label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
+              <input value={searchQuery} onChange={(e) => handleSearch(e.target.value)} placeholder="Cari nama atau @username..." className="w-full bg-[#202c33] rounded-lg pl-10 pr-4 py-2.5 text-[14px] text-[#e9edef] placeholder:text-[#8696a0] outline-none border border-transparent focus:border-[#00a884] transition-colors" />
             </div>
-            {searchResults.length>0 && (
-              <div style={{marginTop:8, maxHeight:160, overflowY:'auto', border:'1px solid #2d2d2d', borderRadius:8, padding:8}}>
+            {admins.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {admins.map(a => (
+                  <span key={a.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00a884]/15 border border-[#00a884]/30 text-[12px] font-medium text-[#00a884]">
+                    {a.displayName || a.username}
+                    <button type="button" onClick={() => removeAdmin(a.id)} className="w-4 h-4 rounded-full bg-[#00a884]/20 hover:bg-red-500/30 flex items-center justify-center transition-colors">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {searchResults.length > 0 && (
+              <div className="mt-2 max-h-[160px] overflow-y-auto rounded-lg border border-[#222d34] bg-[#1a2329]">
                 {searchResults.map(u => (
-                  <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px'}}>
-                    <div>{u.displayName || u.username} <span style={{color:'#9aa0c7',fontSize:12}}>@{u.username}</span></div>
-                    <button type="button" onClick={()=>addAdmin(u)} style={{padding:'6px 8px', background:'#0891b2', color:'#000', border:'none', borderRadius:8}}>Add</button>
-                  </div>
+                  <button key={u.id} type="button" onClick={() => addAdmin(u)} className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[#202c33] transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white text-[12px] font-bold">
+                        {(u.displayName || u.username || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[14px] text-[#e9edef] font-medium">{u.displayName || u.username}</p>
+                        <p className="text-[12px] text-[#8696a0]">@{u.username}</p>
+                      </div>
+                    </div>
+                    <span className="w-7 h-7 rounded-full bg-[#00a884]/15 flex items-center justify-center">
+                      <UserPlus className="w-3.5 h-3.5 text-[#00a884]" />
+                    </span>
+                  </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-            <button type="button" onClick={onClose} style={{padding:'8px 12px', borderRadius:8, background:'#1f2937', color:'#fff'}}>Cancel</button>
-            <button type="submit" disabled={loading} style={{padding:'8px 12px', borderRadius:8, background:'#0891b2', color:'#000', fontWeight:700}}>{loading? 'Creating...':'Create Group'}</button>
+          {error && <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-[13px] text-red-400">{error}</div>}
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg text-[14px] font-semibold text-[#00a884] hover:bg-[#00a884]/10 transition-colors">Batal</button>
+            <button type="submit" disabled={loading || !name.trim()} className="px-5 py-2.5 rounded-lg bg-[#00a884] hover:bg-[#06cf9c] text-[#111b21] text-[14px] font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2">
+              {loading ? (<><div className="w-4 h-4 rounded-full border-2 border-[#111b21]/30 border-t-[#111b21] animate-spin" /> Membuat...</>) : (<><Check className="w-4 h-4" /> Buat Grup</>)}
+            </button>
           </div>
-          {error && <div style={{color:'#ff7b7b'}}>{error}</div>}
         </form>
       </div>
     </div>
   )
 }
-
-const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:3000 }
-const modal = { width:640, background:'#0b0b0d', padding:20, borderRadius:12, color:'#e6e6ef', boxShadow:'0 10px 30px rgba(2,6,23,0.6)' }
-const labelStyle = { display:'flex', flexDirection:'column', gap:6 }
-const inputStyle = { padding:'10px', borderRadius:8, border:'1px solid #2d2d2d', background:'#0b0b0b', color:'#e6e6ef', marginTop:6 }
 
 export default CreateGroupModal

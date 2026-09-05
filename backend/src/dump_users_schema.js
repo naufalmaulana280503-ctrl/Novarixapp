@@ -1,12 +1,18 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const dbPath = path.join(__dirname, '..', 'data', 'novarix.db');
-const db = new sqlite3.Database(dbPath);
+const { pool, initDatabase } = require('./models/db');
 
-db.serialize(()=>{
-  db.all("PRAGMA table_info(users);", [], (err, rows) => {
-    if (err) { console.error(err); process.exit(1); }
+(async () => {
+  try {
+    await initDatabase();
+    const [rows] = await pool.query(
+      `SELECT column_name, data_type, is_nullable, column_default
+       FROM information_schema.columns
+       WHERE table_name = 'users'
+       ORDER BY ordinal_position`
+    );
     console.log(JSON.stringify(rows, null, 2));
-    db.close();
-  });
-});
+    process.exit(0);
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
+})();

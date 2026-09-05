@@ -72,6 +72,10 @@ router.post('/:id/follow', authenticate, async (req, res) => {
     await pool.query('INSERT INTO follows (follower_id, following_id) VALUES (?, ?)', [req.userId, targetId]);
     await pool.query('UPDATE users SET following_count = following_count + 1 WHERE id = ?', [req.userId]);
     await pool.query('UPDATE users SET followers_count = followers_count + 1 WHERE id = ?', [targetId]);
+    // Notify followed user
+    const { createNotification } = require('../routes/notifications');
+    const [actor] = await pool.query('SELECT username FROM users WHERE id = ?', [req.userId]);
+    createNotification(targetId, req.userId, 'follow', `@${actor[0]?.username || 'user'} mulai mengikutimu 👋`);
     res.status(201).json({ following: true });
   } catch (err) {
     if (/unique|duplicate/i.test(err.message)) return res.json({ following: true });
@@ -208,6 +212,76 @@ router.get('/:username', authenticate, async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// === PROFILE EDIT ROUTES ===
+const multer = require('multer');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const profileStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', '..', 'public', 'uploads')),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `profile_${req.userId}_${uuidv4().slice(0, 8)}${ext}`);
+  },
+});
+const profileUpload = multer({ storage: profileStorage, limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => { const ok = ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype); cb(null, ok); },
+});
+
+router.put('/me/profile', authenticate, async (req, res) => {
+  try {
+    const { displayName, bio, location, website, gender, isPrivate } = req.body;
+    const updates = [];
+    const params = [];
+    if (displayName !== undefined) { updates.push('display_name = ?'); params.push(displayName); }
+    if (bio !== undefined) { updates.push('bio = ?'); params.push(bio); }
+    if (location !== undefined) { updates.push('location = ?'); params.push(location); }
+    if (website !== undefined) { updates.push('website = ?'); params.push(website); }
+    if (gender !== undefined) { updates.push('gender = ?'); params.push(gender); }
+    if (isPrivate !== undefined) { updates.push('is_private = ?'); params.push(!!isPrivate); }
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(req.userId);
+    await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    res.json({ message: 'Profil berhasil diperbarui' });
+  } catch (err) { console.error('Update profile error:', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.put('/me/avatar', authenticate, profileUpload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'File tidak ditemukan' });
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    await pool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.userId]);
+    res.json({ avatarUrl });
+  } catch (err) { console.error('Update avatar error:', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.put('/me/banner', authenticate, profileUpload.single('banner'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'File tidak ditemukan' });
+    const bannerUrl = `/uploads/${req.file.filename}`;
+    await pool.query('UPDATE users SET banner_url = ? WHERE id = ?', [bannerUrl, req.userId]);
+    res.json({ bannerUrl });
+  } catch (err) { console.error('Update banner error:', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.post('/:id/block', authenticate, async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id, 10);
+    if (targetId === req.userId) return res.status(400).json({ message: 'Cannot block yourself' });
+    const { createNotification } = require('./notifications');
+    await pool.query('INSERT INTO blocked_users (blocker_id, blocked_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [req.userId, targetId]);
+    await pool.query('DELETE FROM follows WHERE (follower_id = ? AND following_id = ?) OR (follower_id = ? AND following_id = ?)', [req.userId, targetId, targetId, req.userId]);
+    res.json({ blocked: true });
+  } catch (err) { console.error('Block user error:', err); res.status(500).json({ message: 'Server error' }); }
+});
+
+router.delete('/:id/block', authenticate, async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id, 10);
+    await pool.query('DELETE FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?', [req.userId, targetId]);
+    res.json({ blocked: false });
+  } catch (err) { console.error('Unblock user error:', err); res.status(500).json({ message: 'Server error' }); }
 });
 
 module.exports = router;

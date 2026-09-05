@@ -39,7 +39,7 @@ router.post('/:id/report', authenticate, async (req, res) => {
       `UPDATE anon_confessions SET reports_count = reports_count + 1, status = CASE WHEN reports_count + 1 >= 3 THEN 'review' ELSE status END WHERE id = ? AND status != 'removed'`,
       [req.params.id],
     );
-    if (!result.affectedRows) return res.status(404).json({ message: 'Pengakuan tidak ditemukan' });
+    if (!result.changes) return res.status(404).json({ message: 'Pengakuan tidak ditemukan' });
     res.json({ message: 'Laporan diterima' });
   } catch (error) {
     console.error('Report anonymous confession error:', error);

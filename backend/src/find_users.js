@@ -1,13 +1,19 @@
-const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-const DB_PATH = path.join(__dirname, '..', 'data', 'novarix.db');
-const db = new sqlite3.Database(DB_PATH);
+const { pool, initDatabase } = require('./models/db');
 
-db.serialize(()=>{
-  db.all("SELECT id, username, display_name, email FROM users WHERE username LIKE '%Lucas%' OR display_name LIKE '%Lucas%' OR username LIKE '%N.%' OR display_name LIKE '%N.%' LIMIT 50", [], (err, rows)=>{
-    if (err) { console.error(err); process.exit(1); }
+(async () => {
+  try {
+    await initDatabase();
+    const [rows] = await pool.query(
+      `SELECT id, username, display_name, email FROM users
+       WHERE username ILIKE '%Lucas%' OR display_name ILIKE '%Lucas%'
+          OR username ILIKE '%N.%' OR display_name ILIKE '%N.%'
+       LIMIT 50`
+    );
     console.log('Found users:');
     console.log(rows);
-    db.close();
-  });
-});
+    process.exit(0);
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
+})();

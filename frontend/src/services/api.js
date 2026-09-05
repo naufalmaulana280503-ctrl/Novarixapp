@@ -276,11 +276,42 @@ export const watermarkApi = {
 }
 
 export const verificationApi = {
-  // Optional server-side eligibility check
   checkEligibility: (userId) => api.get(`/verification/eligibility/${userId}`),
-  // Submit a verification request: { userId, tier, metadata, documents }
   submitRequest: (data) => api.post('/verification/request', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getRequestStatus: (userId) => api.get(`/verification/status/${userId}`),
 }
 
+export const notificationsApi = {
+  getAll: (page = 1) => api.get(`/notifications?page=${page}`),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markRead: (ids) => api.post('/notifications/read', { notificationIds: ids }),
+  markAllRead: () => api.post('/notifications/read-all'),
+}
 
+export const bookmarksApi = {
+  toggle: (postId) => api.post(`/bookmarks/${postId}/toggle`),
+  getAll: (page = 1) => api.get(`/bookmarks?page=${page}`),
+  getStatus: (postId) => api.get(`/bookmarks/${postId}/status`),
+}
+
+export const profileApi = {
+  update: (data) => api.put('/users/me/profile', data),
+  updateAvatar: (file) => {
+    const fd = new FormData(); fd.append('avatar', file);
+    return api.put('/users/me/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  updateBanner: (file) => {
+    const fd = new FormData(); fd.append('banner', file);
+    return api.put('/users/me/banner', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+}
+
+export const blockApi = {
+  block: (userId) => api.post(`/users/${userId}/block`),
+  unblock: (userId) => api.delete(`/users/${userId}/block`),
+}
+
+export const coinsApi = {
+  getBalance: () => api.get('/gifts/coins/balance'),
+  getHistory: () => api.get('/gifts/coins/history'),
+}

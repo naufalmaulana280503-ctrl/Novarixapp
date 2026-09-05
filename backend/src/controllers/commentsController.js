@@ -1,4 +1,5 @@
 const { pool } = require('../models/db');
+const { createNotification } = require('../routes/notifications');
 
 const listComments = async (req, res) => {
   try {
@@ -66,6 +67,11 @@ const createComment = async (req, res) => {
     const comment = rows[0];
 
     await pool.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?', [postId]);
+    // Notify post author
+    const [postAuthor] = await pool.query('SELECT user_id FROM posts WHERE id = ?', [postId]);
+    if (postAuthor.length > 0) {
+      createNotification(postAuthor[0].user_id, userId, 'comment', 'Mengomentari postinganmu 💬', { postId, commentId: result.insertId });
+    }
 
     res.status(201).json({
       id: comment.id,

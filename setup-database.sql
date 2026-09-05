@@ -1,9 +1,8 @@
--- Novarix Database Setup Script (Optional - for MySQL only)
--- The backend now defaults to SQLite and does NOT require MySQL.
--- Use this script only if you explicitly want to switch back to MySQL.
-
-CREATE DATABASE IF NOT EXISTS novarix CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE USER IF NOT EXISTS 'novarix'@'localhost' IDENTIFIED BY 'novarix123';
-GRANT ALL PRIVILEGES ON novarix.* TO 'novarix'@'localhost';
-FLUSH PRIVILEGES;
+-- PostgreSQL setup is automatic when the backend starts.
+--
+-- For Railway, link a PostgreSQL service to the backend service and use the
+-- generated DATABASE_URL. For local PostgreSQL, create a database and set:
+-- DATABASE_URL=postgresql://postgres:<password>@localhost:5432/novarix
+--
+-- The canonical schema is applied by backend/src/models/db.js from:
+-- backend/database/supabase/schema.sql

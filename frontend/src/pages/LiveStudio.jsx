@@ -53,6 +53,7 @@ const LiveStudio = ({ streamId, user }) => {
   const [showSettings, setShowSettings] = useState(false)
   const [sourceMode, setSourceMode] = useState('front')
   const [selectedEffect, setSelectedEffect] = useState('none')
+  const [showEffects, setShowEffects] = useState(false)
   const [stats, setStats] = useState(DEFAULT_STATS)
   const [quality, setQuality] = useState('1080p')
   const [networkQuality, setNetworkQuality] = useState('Checking')
@@ -109,7 +110,7 @@ const LiveStudio = ({ streamId, user }) => {
 
     return () => {
       mounted = false
-      stopBroadcast()
+      try { stopBroadcast() } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -119,6 +120,18 @@ const LiveStudio = ({ streamId, user }) => {
       setSourceMode(sourceModes[0] || 'front')
     }
   }, [sourceModes, sourceMode])
+
+  /* Auto-start camera preview once on mount */
+  const autoPreviewedRef = useRef(false)
+  useEffect(() => {
+    if (isLive || autoPreviewedRef.current) return
+    const timer = setTimeout(() => {
+      autoPreviewedRef.current = true
+      try { previewSources(sourceMode) } catch (e) { console.warn('auto preview failed', e) }
+    }, 500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!isLive) return undefined
@@ -626,6 +639,13 @@ const LiveStudio = ({ streamId, user }) => {
     } catch (error) { console.warn('collectStats error:', error) }
   }
 
+  const formatRecordTime = (sec) => {
+    if (!sec) return '00:00'
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
   const qualityToDims = (q) => {
     switch (q) {
       case '1440p': return { width: 2560, height: 1440, fps: 30 }
@@ -660,11 +680,45 @@ const LiveStudio = ({ streamId, user }) => {
 
   const fullSourceList = () => sourceModes.concat(deviceProfile.canScreenShare ? ['screen-only'] : [])
 
+  const [showMicPanel, setShowMicPanel] = useState(false)
+
   return (
-    <div className="min-h-screen w-full bg-[#0b0b0e] text-white">
-      <div className="px-4 sm:px-6 py-4 max-w-[1600px] mx-auto">
-        {/* ===== Header Studio ===== */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+    <div className="min-h-screen w-full bg-[#0b0b0e] text-white pb-20 sm:pb-0">
+      {/* ===== Mobile Header (fixed) ===== */}
+      <div className="sm:hidden sticky top-0 z-30 bg-[#0b0b0e]/95 backdrop-blur-xl border-b border-neutral-800 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center">
+              <RadioTower className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black">Live Studio</h1>
+              {isLive && (
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>
+                  <span className="text-[10px] font-bold text-red-400">LIVE {formatRecordTime(stats.durationSeconds)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isLive && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-neutral-800 text-[10px] font-bold">
+                <Radio className="w-3 h-3 text-red-400 animate-pulse"/>
+                {viewerCount}
+              </div>
+            )}
+            <label className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-neutral-900 border border-neutral-800 cursor-pointer">
+              <input type="checkbox" checked={saveReplay} onChange={(e) => setSaveReplay(e.target.checked)} className="accent-cyan-500 w-3 h-3" />
+              <Disc3 className={`w-3 h-3 ${saveReplay ? 'text-cyan-400' : 'text-neutral-600'}`} />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-[1600px] mx-auto">
+        {/* ===== Desktop Header ===== */}
+        <div className="hidden sm:flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 via-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
               <RadioTower className="w-6 h-6 text-white" />
@@ -674,152 +728,125 @@ const LiveStudio = ({ streamId, user }) => {
               <p className="text-xs text-neutral-400">Stream ID: {streamId || 'preview-mode'}</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={saveReplay}
-                onChange={(e) => setSaveReplay(e.target.checked)}
-                className="accent-cyan-500"
-              />
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 cursor-pointer">
+              <input type="checkbox" checked={saveReplay} onChange={(e) => setSaveReplay(e.target.checked)} className="accent-cyan-500" />
               <Disc3 className={`w-4 h-4 ${saveReplay ? 'text-cyan-400 animate-pulse' : 'text-neutral-500'}`} />
               <span>Rekam sebagai Replay</span>
             </label>
-            <Link
-              to="/live/replays"
-              className="inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 hover:text-cyan-300 transition"
-            >
+            <Link to="/live/replays" className="inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 hover:text-cyan-300 transition">
               <RotateCcw className="w-4 h-4"/> Arsip Replay
             </Link>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* ===== Preview + Sources ===== */}
-          <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex flex-col lg:flex-row gap-4 px-4 sm:px-6">
+          {/* ===== Preview + Controls ===== */}
+          <div className="flex-1 min-w-0 space-y-3">
             {/* Preview Card */}
-            <div className="relative rounded-2xl bg-black border border-neutral-800 shadow-2xl overflow-hidden aspect-video w-full">
-              <div id="live-preview" className="w-full h-full"/>
-              {/* Top Left: Status + ControlPanel */}
-              <div className="absolute top-3 left-3 flex flex-col gap-2">
+            <div className="relative rounded-2xl bg-black border border-neutral-800 shadow-2xl overflow-hidden w-full">
+              <div id="live-preview" className="w-full aspect-video"/>
+
+              {/* Minimal overlay on preview: just LIVE badge + viewer count */}
+              <div className="absolute top-3 left-3 flex items-center gap-2">
                 {isLive && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/90 text-white text-[11px] font-black tracking-wider shadow-lg">
-                    <Radio className="w-3.5 h-3.5 animate-pulse"/> LIVE {isRecording && <span>● REC {recordedSizeMB}MB</span>}
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/90 text-white text-[11px] font-black shadow-lg">
+                    <Radio className="w-3 h-3 animate-pulse"/> LIVE {isRecording && <span>● REC</span>}
                   </div>
                 )}
-                <LiveControlPanel
-                  isLive={isLive}
-                  liveState={liveState}
-                  onGoLive={startBroadcast}
-                  onEndLive={stopBroadcast}
-                  onPauseStream={handlePauseStream}
-                  onFollow={handleFollow}
-                  stats={stats}
-                  quality={quality}
-                  onQualityChange={setQuality}
-                  networkQuality={networkQuality}
-                  errorMessage={errorMessage}
-                  viewerCount={viewerCount}
-                  isPaused={isPaused}
-                />
               </div>
 
-              <div className="absolute top-3 right-3">
-                <EffectsLibrary selected={selectedEffect} onSelect={setSelectedEffect} />
+              {/* Top right: mic + effects toggle */}
+              <div className="absolute top-3 right-3 flex items-center gap-2">
+                <button onClick={() => setShowMicPanel(p => !p)} className="w-8 h-8 rounded-full bg-black/50 backdrop-blur flex items-center justify-center hover:bg-black/70 transition">
+                  <span className="text-sm">🎤</span>
+                </button>
+                <button onClick={() => setShowEffects(p => !p)} className="w-8 h-8 rounded-full bg-black/50 backdrop-blur flex items-center justify-center hover:bg-black/70 transition">
+                  <span className="text-sm">🎨</span>
+                </button>
               </div>
 
-              {/* Bottom bar: quick sources */}
-              <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 flex-wrap">
-                <div className="bg-[#0b0b0e]/90 backdrop-blur rounded-xl border border-neutral-800 p-2 flex flex-wrap gap-2">
-                  {deviceProfile.hasFrontCamera && (
-                    <SourceChip
-                      active={sourceMode === 'front'}
-                      onClick={() => quickSwitchSource('front')}
-                      Icon={Video}
-                      label="Kamera Depan"
-                      sub="PC / HP"
-                    />
-                  )}
-                  {deviceProfile.hasRearCamera && (
-                    <SourceChip
-                      active={sourceMode === 'rear'}
-                      onClick={() => quickSwitchSource('rear')}
-                      Icon={Camera}
-                      label="Kamera Belakang"
-                      sub="HP only"
-                    />
-                  )}
-                  {deviceProfile.canScreenShare && (
-                    <SourceChip
-                      active={sourceMode === 'screen-only'}
-                      onClick={() => quickSwitchSource('screen-only')}
-                      Icon={MonitorPlay}
-                      label="Layar"
-                      sub="Screen Share"
-                    />
-                  )}
-                  {sourceModes.includes('screen-pip') && (
-                    <SourceChip
-                      active={sourceMode === 'screen-pip'}
-                      onClick={() => quickSwitchSource('screen-pip')}
-                      Icon={MonitorPlay}
-                      label="Layar + Cam"
-                      sub="PiP"
-                    />
-                  )}
-                  {deviceProfile.hasDualCam && sourceModes.includes('dual') && (
-                    <SourceChip
-                      active={sourceMode === 'dual'}
-                      onClick={() => quickSwitchSource('dual')}
-                      Icon={Camera}
-                      label="Dual Cam"
-                      sub="2 kamera"
-                    />
-                  )}
+              {/* Mic Panel (toggle) */}
+              {showMicPanel && (
+                <div className="absolute top-14 right-3 z-20">
+                  <MicrophonePanel audioTrackRef={audioTrackRef} onAudioStreamReady={handleAudioReady} />
                 </div>
+              )}
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowSettings(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-neutral-900/90 backdrop-blur border border-neutral-800 hover:border-neutral-700 transition"
-                  >
-                    <Camera className="w-4 h-4"/> Sources
-                  </button>
-                  <button
-                    onClick={requestCameraMicAccess}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black transition shadow"
-                  >
-                    Izinkan Kamera & Mic
-                  </button>
-                  {isLive && (
-                    <button
-                      onClick={stopBroadcast}
-                      className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white transition shadow-lg"
-                    >
-                      End Live
-                    </button>
-                  )}
+              {/* Effects Panel (toggle) */}
+              {showEffects && (
+                <div className="absolute top-14 right-14 z-20">
+                  <EffectsLibrary selected={selectedEffect} onSelect={(fx) => { setSelectedEffect(fx); setShowEffects(false) }} />
                 </div>
-              </div>
+              )}
 
-              {/* Mic Panel */}
-              <div className="absolute -bottom-1 left-3 translate-y-full mt-3">
-                <MicrophonePanel audioTrackRef={audioTrackRef} onAudioStreamReady={handleAudioReady} />
-              </div>
               <DonationAlertOverlay streamId={streamId} />
             </div>
 
-            {/* Stats card */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatChip label="Bitrate" value={`${Math.round((stats.bitrate || 0) / 1000)} kbps`} sub="Upload"/>
-              <StatChip label="Dropped" value={`${stats.droppedFrames || 0}`} sub="Frames"/>
-              <StatChip label="RTT" value={`${Math.round(stats.rtt || 0)} ms`} sub="Latency"/>
+            {/* ===== Source Chips (BELOW preview, not inside) ===== */}
+            <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+              <div className="flex gap-2 pb-1">
+                {deviceProfile.hasFrontCamera && (
+                  <SourceChip active={sourceMode === 'front'} onClick={() => quickSwitchSource('front')} Icon={Video} label="Depan" sub="PC/HP" />
+                )}
+                {deviceProfile.hasRearCamera && (
+                  <SourceChip active={sourceMode === 'rear'} onClick={() => quickSwitchSource('rear')} Icon={Camera} label="Belakang" sub="HP" />
+                )}
+                {deviceProfile.canScreenShare && (
+                  <SourceChip active={sourceMode === 'screen-only'} onClick={() => quickSwitchSource('screen-only')} Icon={MonitorPlay} label="Layar" sub="Screen" />
+                )}
+                {sourceModes.includes('screen-pip') && (
+                  <SourceChip active={sourceMode === 'screen-pip'} onClick={() => quickSwitchSource('screen-pip')} Icon={MonitorPlay} label="Layar+Cam" sub="PiP" />
+                )}
+                {deviceProfile.hasDualCam && sourceModes.includes('dual') && (
+                  <SourceChip active={sourceMode === 'dual'} onClick={() => quickSwitchSource('dual')} Icon={Camera} label="Dual Cam" sub="2 cam" />
+                )}
+              </div>
+            </div>
+
+            {/* ===== Action Buttons ===== */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {!isLive ? (
+                <button onClick={requestCameraMicAccess} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black transition shadow">
+                  🎤 Izinkan Kamera & Mic
+                </button>
+              ) : (
+                <button onClick={stopBroadcast} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-black px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white transition shadow-lg">
+                  ⏹ Akhiri Live
+                </button>
+              )}
+              <button onClick={() => setShowSettings(true)} className="inline-flex items-center justify-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition">
+                <Camera className="w-4 h-4"/> Sources
+              </button>
+            </div>
+
+            {/* Stats (compact on mobile) */}
+            <div className="grid grid-cols-4 gap-2">
+              <StatChip label="Bitrate" value={`${Math.round((stats.bitrate || 0) / 1000)}k`} sub="kbps"/>
+              <StatChip label="Dropped" value={`${stats.droppedFrames || 0}`} sub="frames"/>
+              <StatChip label="RTT" value={`${Math.round(stats.rtt || 0)}ms`} sub="latency"/>
               <StatChip label="Kualitas" value={networkQuality} sub={isLive ? 'Jaringan' : 'Idle'}/>
             </div>
+
+            {/* LiveControlPanel (Go Live / Pause) */}
+            <LiveControlPanel
+              isLive={isLive}
+              liveState={liveState}
+              onGoLive={startBroadcast}
+              onEndLive={stopBroadcast}
+              onPauseStream={handlePauseStream}
+              onFollow={handleFollow}
+              stats={stats}
+              quality={quality}
+              onQualityChange={setQuality}
+              networkQuality={networkQuality}
+              errorMessage={errorMessage}
+              viewerCount={viewerCount}
+              isPaused={isPaused}
+            />
           </div>
 
-          {/* ===== Sidebar: Chat ===== */}
+          {/* ===== Sidebar: Viewers + Chat ===== */}
           <aside className="w-full lg:w-[340px] shrink-0 space-y-3">
             <div className="rounded-2xl bg-[#141418] border border-neutral-800 p-3.5 shadow-xl flex items-center justify-between">
               <div>

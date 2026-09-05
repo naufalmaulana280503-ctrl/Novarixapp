@@ -87,6 +87,8 @@ const Calls = () => {
   const [callElapsed, setCallElapsed] = useState(0)
   const [tab, setTab] = useState('history') // history | contacts
   const [query, setQuery] = useState('')
+  const [mobilePanel, setMobilePanel] = useState('list') // 'list' | 'detail' — mobile toggle
+  const [selectedContact, setSelectedContact] = useState(null)
   const { currentUser } = useAuth()
   const { addToast } = useToast()
   const navigate = useNavigate()
@@ -614,7 +616,7 @@ const Calls = () => {
   return (
     <div className="h-screen w-full bg-[#0b0b0e] text-white flex overflow-hidden">
       {/* ===== LEFT PANEL ===== */}
-      <aside className="w-full sm:w-[340px] shrink-0 h-full border-r border-neutral-800/70 bg-[#101014] flex flex-col">
+      <aside className={`${mobilePanel === 'list' ? 'flex' : 'hidden sm:flex'} w-full sm:w-[340px] shrink-0 h-full border-r border-neutral-800/70 bg-[#101014] flex-col`}>
         <div className="px-4 py-4 border-b border-neutral-800/70">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -688,7 +690,7 @@ const Calls = () => {
               <ul className="space-y-1">
                 {filteredHistory.map(h => (
                   <li key={h.id}>
-                    <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
+                    <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition cursor-pointer" onClick={() => { setSelectedContact(h); setMobilePanel('detail') }}>
                       <div className="relative shrink-0">
                         <Avatar name={h.withName} color={h.withColor} size={46} />
                         <span
@@ -753,7 +755,7 @@ const Calls = () => {
               <ul className="space-y-1">
                 {filteredContacts.map(c => (
                   <li key={c.id}>
-                    <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
+                    <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition cursor-pointer" onClick={() => { setSelectedContact(c); setMobilePanel('detail') }}>
                       <Avatar name={c.displayName} color={c.avatarColor} size={46} online={c.online} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
@@ -796,8 +798,15 @@ const Calls = () => {
       </aside>
 
       {/* ===== RIGHT PANEL: Quick start call ===== */}
-      <section className="flex-1 h-full flex flex-col min-w-0 bg-[#0b0b0e] overflow-y-auto">
+      <section className={`${mobilePanel === 'detail' ? 'flex' : 'hidden sm:flex'} flex-1 h-full flex-col min-w-0 bg-[#0b0b0e] overflow-y-auto relative`}>
         <div className="max-w-3xl mx-auto w-full px-6 py-10">
+          {/* Mobile back button */}
+          <button
+            onClick={() => setMobilePanel('list')}
+            className="sm:hidden mb-4 inline-flex items-center gap-2 text-neutral-400 hover:text-white text-sm -ml-2"
+          >
+            <ArrowLeft className="w-4 h-4" /> Kembali
+          </button>
           {/* Hero */}
           <div className="mb-10 p-8 rounded-3xl border border-white/5"
             style={{ background: 'radial-gradient(ellipse at top left, rgba(56,189,248,0.12), transparent 50%), radial-gradient(ellipse at bottom right, rgba(8,145,178,0.1), transparent 50%), #0d0d12' }}

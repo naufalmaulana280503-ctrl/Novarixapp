@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { pool } = require('../models/db');
 const { computeVerifiedBadge, formatNumber } = require('./authController');
+const { createNotification } = require('../routes/notifications');
 const {
   toPublicMediaUrl,
   resolveStoredFilePath,
@@ -484,6 +485,8 @@ const toggleLike = async (req, res) => {
           [postId, userId]
         );
         await pool.query('UPDATE posts SET likes = COALESCE(likes, 0) + 1, has_reaction = TRUE WHERE id = ?', [postId]);
+        // Create notification for post author
+        createNotification(postAuthorId, userId, 'like', 'Menyukai postinganmu ❤️', { postId });
         if (String(postAuthorId) !== String(userId)) {
           await pool.query('UPDATE users SET likes_received_count = COALESCE(likes_received_count, 0) + 1 WHERE id = ?', [postAuthorId]);
         }

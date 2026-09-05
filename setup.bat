@@ -19,8 +19,8 @@ echo ========================================
 echo   Setup Complete!
 echo ========================================
 echo.
-echo Database: SQLite (auto-created on first run)
-echo No MySQL/PostgreSQL required!
+echo Database: PostgreSQL
+echo Set backend\.env from backend\.env.example before starting the backend.
 echo.
 echo To run the application:
 echo   1. Run backend:   cd backend ^&^& npm run dev

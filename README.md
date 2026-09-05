@@ -1,6 +1,6 @@
 # Novarix Social Media Platform
 
-Novarix is a heavy-class interactive social media platform built with React.js frontend, Node.js/Express backend, and SQLite database.
+Novarix is a heavy-class interactive social media platform built with React.js frontend, Node.js/Express backend, and PostgreSQL database.
 
 ## Branding & Identity
 
@@ -53,7 +53,7 @@ Novarix is a heavy-class interactive social media platform built with React.js f
 
 - **Frontend**: React.js, React Router, Axios, Vite
 - **Backend**: Node.js, Express.js
-- **Database**: SQLite (auto-created, no external DB required)
+- **Database**: PostgreSQL (Railway `DATABASE_URL` or another PostgreSQL provider)
 - **Auth**: JWT (JSON Web Tokens)
 - **File Upload**: Multer
 - **Email**: Nodemailer
@@ -76,10 +76,25 @@ cd C:\laragon\www\Novarix
 ```bash
 cd backend
 npm install
+# Copy .env.example to .env and set DATABASE_URL and JWT_SECRET first.
 npm run dev
 ```
 
 The backend will run on `http://localhost:5000`
+
+### Railway deployment
+
+Create a PostgreSQL service in Railway and link it to the backend service. Railway
+will provide `DATABASE_URL` automatically. Set `JWT_SECRET`, `CORS_ORIGINS`, and
+the email variables in the backend service variables, then deploy the `backend`
+directory with:
+
+```bash
+npm install
+npm start
+```
+
+The backend runs on Railway's `PORT` and initializes the PostgreSQL schema on startup.
 
 ### 3. Frontend Setup
 
@@ -313,7 +328,7 @@ Novarix/
 
 ## Database
 
-- **SQLite** - auto-created at `backend/data/novarix.db`
+- **PostgreSQL** - configured with `DATABASE_URL`; the schema is initialized on backend startup
 - No MySQL/PostgreSQL required
 - 22 tables covering users, posts, comments, reactions, gifts, stickers, follows, groups, messages, calls, ads, reports, bot checks, terms, watermarks, sessions
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { reactionsApi, commentsApi, postsApi, followsApi } from '../services/api'
+import { reactionsApi, commentsApi, postsApi, followsApi, bookmarksApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import VerifiedBadge from './VerifiedBadge'
@@ -660,7 +660,7 @@ const PostCard = ({ post, onDelete }) => {
 
         <button
           type="button"
-          onClick={() => setSaved((value) => !value)}
+          onClick={async () => { try { const res = await bookmarksApi.toggle(post.id); setSaved(res.data.bookmarked); addToast({ type: 'success', text: res.data.bookmarked ? 'Disimpan ke bookmark' : 'Dihapus dari bookmark' }); } catch { setSaved((v) => !v); } }}
           title={saved ? 'Hapus dari tersimpan' : 'Simpan postingan'}
           aria-pressed={saved}
           className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl transition-all duration-200 active:scale-90 select-none touch-manipulation ${saved ? 'text-amber-400' : 'text-neutral-100 hover:text-amber-300'}`}
