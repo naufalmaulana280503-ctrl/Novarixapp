@@ -13,7 +13,8 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 if (IS_PRODUCTION && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET wajib dikonfigurasi di production');
 }
-const PRODUCTION_ORIGINS = String(process.env.CORS_ORIGINS || '')
+const DEFAULT_FRONTEND_ORIGIN = 'https://inspiring-education-production-7521.up.railway.app';
+const PRODUCTION_ORIGINS = String(process.env.CORS_ORIGINS || DEFAULT_FRONTEND_ORIGIN)
   .split(',')
   .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean);
