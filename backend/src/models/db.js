@@ -4,10 +4,30 @@ const fs = require('fs');
 const { Pool } = require('pg');
 
 // ─── PostgreSQL Connection ────────────────────────────────────────────────────
-const DATABASE_URL = process.env.DATABASE_URL || '';
+const buildDatabaseUrlFromParts = () => {
+  const host = process.env.PGHOST || process.env.POSTGRES_HOST;
+  const port = process.env.PGPORT || process.env.POSTGRES_PORT || '5432';
+  const database = process.env.PGDATABASE || process.env.POSTGRES_DB;
+  const user = process.env.PGUSER || process.env.POSTGRES_USER;
+  const password = process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD;
+
+  if (!host || !database || !user || !password) return '';
+
+  const encodedUser = encodeURIComponent(user);
+  const encodedPassword = encodeURIComponent(password);
+  return `postgresql://${encodedUser}:${encodedPassword}@${host}:${port}/${database}`;
+};
+
+const DATABASE_URL = process.env.DATABASE_URL
+  || process.env.DATABASE_PUBLIC_URL
+  || process.env.POSTGRES_URL
+  || process.env.POSTGRES_URL_NON_POOLING
+  || buildDatabaseUrlFromParts();
 
 if (!DATABASE_URL) {
-  console.error('[FATAL] DATABASE_URL tidak dikonfigurasi. PostgreSQL wajib untuk Novarix.');
+  console.error(
+    '[FATAL] DATABASE_URL tidak dikonfigurasi. Link service PostgreSQL Railway ke backend atau set DATABASE_URL.'
+  );
   process.exit(1);
 }
 

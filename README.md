@@ -85,9 +85,11 @@ The backend will run on `http://localhost:5000`
 ### Railway deployment
 
 Create a PostgreSQL service in Railway and link it to the backend service. Railway
-will provide `DATABASE_URL` automatically. Set `JWT_SECRET`, `CORS_ORIGINS`, and
-the email variables in the backend service variables, then deploy the `backend`
-directory with:
+will provide `DATABASE_URL` automatically. If your Railway setup exposes separate
+PostgreSQL variables, the backend also accepts `PGHOST`, `PGPORT`, `PGDATABASE`,
+`PGUSER`, and `PGPASSWORD` and assembles the connection URL automatically. Set
+`JWT_SECRET`, `CORS_ORIGINS`, and the email variables in the backend service
+variables, then deploy the `backend` directory with:
 
 ```bash
 npm install
