@@ -41,11 +41,22 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK platform
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null || true
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify Android build toolchain
+        run: |
+          java -version
+          android/gradlew --version
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Build web assets and sync Capacitor
         run: npm run android:sync
@@ -53,7 +64,8 @@ jobs:
       - name: Build debug APK
         run: |
           chmod +x android/gradlew
-          android/gradlew assembleDebug --no-daemon --stacktrace
+          cd android
+          ./gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
