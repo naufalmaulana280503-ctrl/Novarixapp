@@ -17,6 +17,7 @@ const PostComposer = ({ compact = false, onCreated }) => {
   const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   const navigate = useNavigate()
 
   const addFiles = (incoming) => {
@@ -53,8 +54,8 @@ const PostComposer = ({ compact = false, onCreated }) => {
 
   const handleUpload = async (e) => {
     e.preventDefault()
-    if (!files.length) {
-      setError('Please select at least one JPEG, PNG, or MP4 file')
+    if (!files.length && !caption.trim()) {
+      setError('Tambahkan teks atau pilih foto/video/file terlebih dahulu')
       return
     }
 
@@ -124,8 +125,8 @@ const PostComposer = ({ compact = false, onCreated }) => {
         }}
         onClick={() => fileInputRef.current?.click()}
       >
-        <p style={styles.dropzoneText}>Add images or a video</p>
-        <p style={styles.dropzoneHint}>JPEG / PNG (max 10MB) · MP4 (max 200MB) · up to {MAX_POST_MEDIA} files</p>
+        <p style={styles.dropzoneText}>Foto, video, atau file dari perangkat</p>
+        <p style={styles.dropzoneHint}>Kamera langsung atau pilih folder perangkat · JPEG / PNG (max 10MB) · MP4 (max 200MB)</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -137,6 +138,26 @@ const PostComposer = ({ compact = false, onCreated }) => {
           }}
           style={{ display: 'none' }}
         />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*,video/*"
+          capture="environment"
+          onChange={(e) => {
+            addFiles(e.target.files)
+            e.target.value = ''
+          }}
+          style={{ display: 'none' }}
+          aria-label="Buka kamera"
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+          <button type="button" onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click() }} style={styles.actionButton}>
+            Buka kamera
+          </button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }} style={styles.actionButton}>
+            Pilih file
+          </button>
+        </div>
       </div>
 
       {files.length > 0 && (
@@ -182,7 +203,7 @@ const PostComposer = ({ compact = false, onCreated }) => {
             <span style={styles.progressText}>{progress}%</span>
           </div>
         )}
-        <button type="submit" disabled={uploading || !files.length} style={styles.uploadButton}>
+        <button type="submit" disabled={uploading || (!files.length && !caption.trim())} style={styles.uploadButton}>
           {uploading ? 'Publishing...' : 'Publish'}
         </button>
       </form>
@@ -258,6 +279,14 @@ const styles = {
     borderRadius: '50%',
     border: 'none',
     backgroundColor: 'rgba(0,0,0,0.75)',
+    color: '#fff',
+    cursor: 'pointer',
+  },
+  actionButton: {
+    border: '1px solid #3b5560',
+    borderRadius: 8,
+    padding: '7px 12px',
+    backgroundColor: '#12313a',
     color: '#fff',
     cursor: 'pointer',
   },

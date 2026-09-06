@@ -149,6 +149,19 @@ initDatabase().then(() => {
 
     io.on('connection', (socket) => {
       console.log('[SIGNALING] Client connected:', socket.id);
+      const isGroupMember = async (groupId) => {
+        const gid = Number(groupId);
+        if (!Number.isInteger(gid) || gid <= 0) return false;
+        const [rows] = await pool.query(
+          'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
+          [gid, socket.data.userId]
+        );
+        return rows.length > 0;
+      };
+      const isCallParticipant = (roomId) => {
+        const members = callRooms.get(String(roomId));
+        return !!members && members.has(socket.id);
+      };
 
       // ---------- AUTH / PRESENCE ----------
       socket.on('user:join', ({ userId, displayName }) => {
@@ -177,8 +190,9 @@ initDatabase().then(() => {
       });
 
       // ---------- GROUP CHAT ----------
-      socket.on('group:join', ({ groupId }) => {
+      socket.on('group:join', async ({ groupId }) => {
         if (!groupId) return;
+        if (!(await isGroupMember(groupId))) return;
         const gid = String(groupId);
         socket.join(`group:${gid}`);
         if (!groupSockets.has(gid)) groupSockets.set(gid, new Set());
@@ -194,8 +208,9 @@ initDatabase().then(() => {
         if (set) set.delete(socket.id);
       });
 
-      socket.on('group:sendMessage', ({ groupId, message, senderInfo, payload }) => {
+      socket.on('group:sendMessage', async ({ groupId, message, senderInfo, payload }) => {
         if (!groupId) return;
+        if (!(await isGroupMember(groupId))) return;
         const gid = String(groupId);
         io.to(`group:${gid}`).emit('group:newMessage', {
           groupId: gid,
@@ -211,7 +226,15 @@ initDatabase().then(() => {
 
       // ---------- WEBRTC CALLS (SIGNALING) ----------
       // Initiator starts a call
-      socket.on('call:start', ({ callId, type, roomId, groupId, targetUserId, offer, initiatorInfo }) => {
+      socket.on('call:start', async ({ callId, type, roomId, groupId, targetUserId, offer, initiatorInfo }) => {
+        if (groupId && !(await isGroupMember(groupId))) return;
+        if (callId) {
+          const [calls] = await pool.query(
+            'SELECT 1 FROM calls WHERE id = ? AND (caller_id = ? OR receiver_id = ?)',
+            [callId, socket.data.userId, socket.data.userId]
+          );
+          if (!calls.length) return;
+        }
         const room = String(roomId || callId || `call_${Date.now()}`);
         socket.join(room);
         if (!callRooms.has(room)) callRooms.set(room, new Set());
@@ -239,8 +262,20 @@ initDatabase().then(() => {
       });
 
       // Callee accepts -> sends answer back
-      socket.on('call:answer', ({ roomId, answer, toSocket }) => {
+      socket.on('call:answer', async ({ roomId, callId, answer, toSocket }) => {
         if (!roomId) return;
+        if (!isCallParticipant(roomId)) {
+          const numericCallId = Number(callId || roomId);
+          if (!Number.isInteger(numericCallId)) return;
+          const [calls] = await pool.query(
+            'SELECT 1 FROM calls WHERE id = ? AND (caller_id = ? OR receiver_id = ?)',
+            [numericCallId, socket.data.userId, socket.data.userId]
+          );
+          if (!calls.length) return;
+        }
+        socket.join(String(roomId));
+        if (!callRooms.has(String(roomId))) callRooms.set(String(roomId), new Set());
+        callRooms.get(String(roomId)).add(socket.id);
         socket.join(String(roomId));
         const set = callRooms.get(String(roomId));
         if (set) set.add(socket.id);
@@ -258,6 +293,7 @@ initDatabase().then(() => {
       // ICE candidate trickle
       socket.on('call:ice', ({ roomId, candidate, toSocket }) => {
         if (!roomId) return;
+        if (!isCallParticipant(roomId)) return;
         const payload = { roomId, candidate, fromSocket: socket.id };
         if (toSocket) io.to(toSocket).emit('call:ice', payload);
         else socket.to(String(roomId)).emit('call:ice', payload);
@@ -266,18 +302,21 @@ initDatabase().then(() => {
       // Call controls
       socket.on('call:toggleMic', ({ roomId, muted }) => {
         if (!roomId) return;
+        if (!isCallParticipant(roomId)) return;
         socket.to(String(roomId)).emit('call:peerMicToggle', {
           roomId, userId: socket.data.userId, muted,
         });
       });
       socket.on('call:toggleCam', ({ roomId, off }) => {
         if (!roomId) return;
+        if (!isCallParticipant(roomId)) return;
         socket.to(String(roomId)).emit('call:peerCamToggle', {
           roomId, userId: socket.data.userId, off,
         });
       });
       socket.on('call:end', ({ roomId, reason }) => {
         if (!roomId) return;
+        if (!isCallParticipant(roomId)) return;
         socket.to(String(roomId)).emit('call:ended', {
           roomId, reason, byUserId: socket.data.userId, bySocket: socket.id,
         });

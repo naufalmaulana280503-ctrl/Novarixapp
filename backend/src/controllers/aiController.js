@@ -271,8 +271,13 @@ const aiChat = async (req, res) => {
     if (typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ message: 'Pesan kosong, isinya apa ya?' });
     }
+    if (message.length > 10000) {
+      return res.status(400).json({ message: 'Pesan terlalu panjang (maksimal 10.000 karakter)' });
+    }
 
-    const clientHistory = Array.isArray(clientHistoryRaw) ? clientHistoryRaw : [];
+    const clientHistory = Array.isArray(clientHistoryRaw)
+      ? clientHistoryRaw.slice(-12).filter((entry) => entry && typeof entry === 'object')
+      : [];
     const history = getConversationHistory(conversationId, userId, clientHistory);
 
     let providerResult = { reply: null, usedFallback: true };

@@ -54,6 +54,7 @@ const createGroup = async (req, res) => {
 const getGroup = async (req, res) => {
   try {
     const groupId = parseInt(req.params.groupId);
+    const requesterId = req.userId;
     const [rows] = await pool.query(
       `SELECT g.*, u.username as owner_username, u.avatar_url as owner_avatar_url
        FROM groups g
@@ -66,6 +67,13 @@ const getGroup = async (req, res) => {
       return res.status(404).json({ message: 'Group not found' });
     }
     const group = rows[0];
+    if (group.is_private && Number(group.owner_id) !== Number(requesterId)) {
+      const [members] = await pool.query(
+        'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
+        [groupId, requesterId]
+      );
+      if (!members.length) return res.status(403).json({ message: 'Not a member of this private group' });
+    }
 
     res.json({
       id: group.id,
@@ -155,6 +163,9 @@ const deleteGroup = async (req, res) => {
 const listUserGroups = async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
+    if (Number(userId) !== Number(req.userId)) {
+      return res.status(403).json({ message: 'Cannot view another user’s groups' });
+    }
     const [rows] = await pool.query(
             `SELECT g.*, gm.role, gm.joined_at,
               (SELECT COUNT(*) FROM group_members gm2 WHERE gm2.group_id = g.id) AS member_count,

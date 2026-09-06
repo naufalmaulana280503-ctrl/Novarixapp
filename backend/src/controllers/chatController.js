@@ -21,6 +21,20 @@ const sendMessage = async (req, res) => {
     if (!receiverId && !groupId) {
       return res.status(400).json({ message: 'Either receiverId or groupId is required' });
     }
+    if (receiverId && groupId) {
+      return res.status(400).json({ message: 'A message cannot target both a user and a group' });
+    }
+    if (receiverId) {
+      const numericReceiverId = Number(receiverId);
+      if (!Number.isInteger(numericReceiverId) || numericReceiverId <= 0 || numericReceiverId === Number(senderId)) {
+        return res.status(400).json({ message: 'Invalid message recipient' });
+      }
+      const [recipients] = await pool.query('SELECT id FROM users WHERE id = ?', [numericReceiverId]);
+      if (!recipients.length) return res.status(404).json({ message: 'Recipient not found' });
+    }
+    if (typeof text === 'string' && text.length > 10000) {
+      return res.status(400).json({ message: 'Message is too long' });
+    }
 
     if (groupId) {
       const [members] = await pool.query('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, senderId]);

@@ -201,7 +201,7 @@ const Calls = () => {
           if (offer) await pc.setRemoteDescription(new RTCSessionDescription(offer))
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
-          signaling.emit('call:answer', { roomId, answer, toSocket: fromSocket })
+          signaling.emit('call:answer', { roomId, callId, answer, toSocket: fromSocket })
           setCallElapsed(0)
           setActiveCall({
             type, roomId,
@@ -312,7 +312,7 @@ const Calls = () => {
 
       try {
         signaling.emit('call:start', {
-          callId: callRoomId,
+          callId: callRecord.data?.id,
           type: transportType,
           mode,
           roomId: callRoomId,

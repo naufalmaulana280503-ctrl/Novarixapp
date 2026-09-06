@@ -698,7 +698,7 @@ const GroupChat = () => {
       } catch (err) { console.error('invite err', err) }
     }
     if (invited > 0) {
-      addToast({ type: 'success', text: `${invoted} anggota ditambahkan` })
+      addToast({ type: 'success', text: `${invited} anggota ditambahkan` })
       fetchGroupMembers(id)
     }
     setSelectedInvitees([])

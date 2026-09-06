@@ -1,5 +1,18 @@
 const { pool } = require('../models/db');
 
+const getCallForParticipant = async (callId, userId) => {
+  if (!Number.isInteger(callId) || callId <= 0) return null;
+  const [rows] = await pool.query(
+    `SELECT * FROM calls
+     WHERE id = ? AND (caller_id = ? OR receiver_id = ? OR
+       (group_id IS NOT NULL AND EXISTS (
+         SELECT 1 FROM group_members gm WHERE gm.group_id = calls.group_id AND gm.user_id = ?
+       )))`,
+    [callId, userId, userId, userId]
+  );
+  return rows[0] || null;
+};
+
 const initiateCall = async (req, res) => {
   try {
     const callerId = req.userId;
@@ -7,6 +20,20 @@ const initiateCall = async (req, res) => {
 
     if (!receiverId && !groupId) {
       return res.status(400).json({ message: 'Either receiverId or groupId is required' });
+    }
+    if (receiverId && (!Number.isInteger(Number(receiverId)) || Number(receiverId) === Number(callerId))) {
+      return res.status(400).json({ message: 'Invalid call recipient' });
+    }
+    if (groupId) {
+      const [members] = await pool.query(
+        'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
+        [groupId, callerId]
+      );
+      if (!members.length) return res.status(403).json({ message: 'Not a member of this group' });
+    }
+    if (receiverId) {
+      const [users] = await pool.query('SELECT 1 FROM users WHERE id = ?', [receiverId]);
+      if (!users.length) return res.status(404).json({ message: 'Call recipient not found' });
     }
 
     const validTypes = ['voice', 'video', 'screen'];
@@ -50,6 +77,11 @@ const updateCallStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
+    const existing = await getCallForParticipant(callId, req.userId);
+    if (!existing) return res.status(404).json({ message: 'Call not found' });
+    if (status === 'accepted' && Number(existing.receiver_id) !== Number(req.userId)) {
+      return res.status(403).json({ message: 'Only the recipient can accept this call' });
+    }
 
     const updateFields = ['status = ?'];
     const params = [status];
@@ -87,9 +119,19 @@ const endCall = async (req, res) => {
     const callId = parseInt(req.params.callId);
     const { endedAt, durationSeconds, screenRecordingUrl } = req.body;
 
+    const existing = await getCallForParticipant(callId, req.userId);
+    if (!existing) return res.status(404).json({ message: 'Call not found' });
+    const safeDuration = Number.isFinite(Number(durationSeconds))
+      ? Math.max(0, Math.min(86400, Number(durationSeconds)))
+      : null;
+    const safeRecordingUrl = typeof screenRecordingUrl === 'string' &&
+      screenRecordingUrl.length <= 2048 &&
+      screenRecordingUrl.startsWith('/uploads/')
+      ? screenRecordingUrl
+      : null;
     await pool.query(
       'UPDATE calls SET status = ?, ended_at = ?, duration_seconds = ?, screen_recording_url = ? WHERE id = ?',
-      ['ended', endedAt || new Date(), durationSeconds || null, screenRecordingUrl || null, callId]
+      ['ended', new Date(), safeDuration, safeRecordingUrl, callId]
     );
 
     const [rows] = await pool.query('SELECT * FROM calls WHERE id = ?', [callId]);

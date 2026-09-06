@@ -85,9 +85,6 @@ const mapPost = (post) => {
 const createPost = async (req, res) => {
   try {
     const files = req.files || [];
-    if (!files.length) {
-      return res.status(400).json({ message: 'At least one media file is required' });
-    }
     if (files.length > 10) {
       unlinkFiles(files);
       return res.status(400).json({ message: 'Maximum 10 media files allowed' });
@@ -102,6 +99,9 @@ const createPost = async (req, res) => {
 
     const { caption, content, privacy, width, height, fps, unlock_at } = req.body;
     const userId = req.userId;
+    if (!files.length && !(caption ?? content ?? '').trim()) {
+      return res.status(400).json({ message: 'Tulis teks atau pilih media terlebih dahulu' });
+    }
     if (!userId) {
       unlinkFiles(files);
       return res.status(401).json({ message: 'User tidak terautentikasi. Silakan login ulang.' });

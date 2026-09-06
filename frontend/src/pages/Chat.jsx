@@ -47,6 +47,7 @@ const Avatar = ({ name, color, size = 40, online = false }) => {
         <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-[#101014]" />
       )}
     </div>
+
   )
 }
 
@@ -359,7 +360,6 @@ const Chat = () => {
   }
 
   const sendPayload = async (payload) => {
-      const res = await api.post(`/chat/messages/${selectedConversation}`, { ...payload, replyToId: replyingTo?.id || payload.replyToId || null })
     if (!selectedConversation) return
     setSending(true)
     const temporaryId = 'opt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
@@ -378,7 +378,10 @@ const Chat = () => {
     setShowAttachMenu(false)
 
     try {
-      const res = await api.post(`/chat/messages/${selectedConversation}`, payload)
+      const res = await api.post(`/chat/messages/${selectedConversation}`, {
+        ...payload,
+        replyToId: replyingTo?.id || payload.replyToId || null,
+      })
       setMessages(prev => prev.map(m => m.id === temporaryId
         ? { ...m, ...(res.data || {}), id: res.data?.id || m.id, isPending: false, sent: true }
         : m))
@@ -399,28 +402,36 @@ const Chat = () => {
       addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal kirim pesan' })
     } finally {
       setSending(false)
+    }
+  }
 
-      const editMessage = async (message) => {
-        const text = message.text !== undefined ? message.text : window.prompt('Edit pesan', '')
-        if (!text || text.trim() === message.text) return
-        try {
-          const { data } = await api.put(`/chat/messages/${message.id}`, { text: text.trim() })
-          setMessages(prev => prev.map(item => item.id === message.id ? { ...item, text: data.text, editedAt: data.editedAt } : item))
-        } catch (err) { addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal edit pesan' }) }
-      }
+  const editMessage = async (message) => {
+    const text = message.text !== undefined ? message.text : window.prompt('Edit pesan', '')
+    if (!text || text.trim() === message.text) return
+    try {
+      const { data } = await api.put(`/chat/messages/${message.id}`, { text: text.trim() })
+      setMessages(prev => prev.map(item => item.id === message.id ? { ...item, text: data.text, editedAt: data.editedAt } : item))
+    } catch (err) {
+      addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal edit pesan' })
+    }
+  }
 
-      const deleteMessage = async (message) => {
-        if (!window.confirm('Hapus pesan ini?')) return
-        try {
-          await api.delete(`/chat/messages/${message.id}`)
-          setMessages(prev => prev.map(item => item.id === message.id ? { ...item, text: 'Pesan telah dihapus', deletedAt: new Date().toISOString(), imageUrl: null, videoUrl: null, voiceUrl: null, documentUrl: null, locationName: null } : item))
-        } catch (err) { addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal hapus pesan' }) }
-      }
+  const deleteMessage = async (message) => {
+    if (!window.confirm('Hapus pesan ini?')) return
+    try {
+      await api.delete(`/chat/messages/${message.id}`)
+      setMessages(prev => prev.map(item => item.id === message.id ? { ...item, text: 'Pesan telah dihapus', deletedAt: new Date().toISOString(), imageUrl: null, videoUrl: null, voiceUrl: null, documentUrl: null, locationName: null } : item))
+    } catch (err) {
+      addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal hapus pesan' })
+    }
+  }
 
-      const reportMessage = async (message, category, details) => {
-        try { await api.post('/reports', { category, details, targetMessageId: message.id }); addToast({ type: 'success', text: 'Laporan terkirim' }) }
-        catch (err) { addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal mengirim laporan' }) }
-      }
+  const reportMessage = async (message, category, details) => {
+    try {
+      await api.post('/reports', { category, details, targetMessageId: message.id })
+      addToast({ type: 'success', text: 'Laporan terkirim' })
+    } catch (err) {
+      addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal mengirim laporan' })
     }
   }
 
@@ -429,15 +440,14 @@ const Chat = () => {
   }
 
   const handleSendMessage = async (e) => {
-        if (editingMessage) {
-          await editMessage({ ...editingMessage, text: newMessage.trim() })
-          setEditingMessage(null)
-          setNewMessage('')
-          return
-        }
-        await sendPayload({ text: newMessage.trim() })
     if (e) e.preventDefault()
     if (!newMessage.trim() || !selectedConversation) return
+    if (editingMessage) {
+      await editMessage({ ...editingMessage, text: newMessage.trim() })
+      setEditingMessage(null)
+      setNewMessage('')
+      return
+    }
     await sendPayload({ text: newMessage.trim() })
   }
 

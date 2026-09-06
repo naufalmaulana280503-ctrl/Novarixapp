@@ -3,6 +3,7 @@ import PostCard from '../components/PostCard'
 import StoriesRow from '../components/StoriesRow'
 import { api } from '../services/api'
 import AnonConfess from './AnonConfess'
+import PostComposer from '../components/PostComposer'
 
 const Feed = () => {
   const [posts, setPosts] = useState([])
@@ -54,7 +55,8 @@ const Feed = () => {
       {!isCompact && <div style={styles.sidebarSpacer}></div>}
       <div style={{ ...styles.feedContainer, ...(isCompact ? { maxWidth: '100%', borderLeft: 'none', borderRight: 'none', paddingTop: 16 } : {}) }}>
         <div style={styles.feed}>
-          <StoriesRow />
+        <PostComposer compact onCreated={() => fetchFeed(true)} />
+        <StoriesRow />
           <div style={styles.zoneTabs} role="tablist" aria-label="Zona feed">
             <button type="button" role="tab" aria-selected={true} onClick={() => setZone('showcase')} style={{ ...styles.tab, ...styles.activeTab }}>Zona Pamer</button>
             <button type="button" role="tab" aria-selected={false} onClick={() => setZone('safe')} style={styles.tab}>Safe Space</button>
