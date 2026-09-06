@@ -53,6 +53,7 @@ jobs:
       - name: Verify Android build toolchain
         run: |
           java -version
+          chmod +x android/gradlew
           android/gradlew --version
 
       - name: Install frontend dependencies
@@ -63,7 +64,6 @@ jobs:
 
       - name: Build debug APK
         run: |
-          chmod +x android/gradlew
           cd android
           ./gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
 
