@@ -2,23 +2,13 @@ name: Build Novarix Android APK
 
 on:
   push:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: apk-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-apk:
-    name: Build debug APK
+  build:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: frontend
 
     steps:
       - name: Checkout repository
@@ -27,50 +17,37 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 18
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses > /dev/null || true
-
-      - name: Install Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Verify Android build toolchain
-        run: |
-          java -version
-          chmod +x ./android/gradlew
-          ./android/gradlew --version
-
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
+        working-directory: frontend
 
       - name: Build web assets and sync Capacitor
-        run: npm run android:sync
+        run: |
+          npm run build
+          npx cap sync android
+        working-directory: frontend
 
-       - name: Build debug APK
-         run: |
-       chmod +x ./android/gradlew
-       ./android/gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
-     working-directory: frontend
+      - name: Make gradlew executable and build APK
+        run: |
+          chmod +x android/gradlew
+          ./gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
+        working-directory: frontend/android
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: novarix-debug-apk-${{ github.sha }}
+          name: novarix-debug-apk
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
