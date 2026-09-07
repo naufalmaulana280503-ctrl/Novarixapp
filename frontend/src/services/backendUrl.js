@@ -1,7 +1,9 @@
 const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
 
 const DEFAULT_BACKEND_PORT = Number.parseInt(env.VITE_BACKEND_PORT || '5000', 10) || 5000
-const EXPLICIT_API_ORIGIN = String(env.VITE_API_ORIGIN || '').trim().replace(/\/+$/, '')
+// VITE_API_URL is the deployment contract. Keep VITE_API_ORIGIN as a
+// backwards-compatible alias for existing local/Capacitor builds.
+const EXPLICIT_API_ORIGIN = String(env.VITE_API_URL || env.VITE_API_ORIGIN || '').trim().replace(/\/+$/, '')
 const DEFAULT_BACKEND_ORIGIN = EXPLICIT_API_ORIGIN || `http://localhost:${DEFAULT_BACKEND_PORT}`
 
 const IN_BROWSER = typeof window !== 'undefined'

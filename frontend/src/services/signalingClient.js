@@ -1,7 +1,11 @@
 import io from 'socket.io-client'
 import { resolveSocketUrl } from './backendUrl'
 
-const SOCKET_URL = resolveSocketUrl(import.meta.env.VITE_SIGNALING_URL)
+// Railway exposes the API and Socket.IO on the same public service/port.
+// A separate URL remains supported for legacy local deployments.
+const SOCKET_URL = resolveSocketUrl(
+  import.meta.env.VITE_SIGNALING_URL || import.meta.env.VITE_API_URL || import.meta.env.VITE_API_ORIGIN
+)
 const socket = io(SOCKET_URL, {
   transports: ['websocket'],
   autoConnect: false,

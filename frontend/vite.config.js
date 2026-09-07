@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const backendPort = env.VITE_BACKEND_PORT || '5000'
-  const backendOrigin = env.VITE_API_ORIGIN || `http://127.0.0.1:${backendPort}`
-  const signalingOrigin = env.VITE_SIGNALING_URL || 'http://127.0.0.1:4000'
+  const backendOrigin = env.VITE_API_URL || env.VITE_API_ORIGIN || `http://127.0.0.1:${backendPort}`
+  const signalingOrigin = env.VITE_SIGNALING_URL || backendOrigin
 
   // Surface proxy failures in the terminal instead of letting the browser show
   // an opaque "Network Error" when the Express backend is not running.

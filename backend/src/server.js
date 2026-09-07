@@ -13,9 +13,8 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 if (IS_PRODUCTION && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET wajib dikonfigurasi di production');
 }
-const DEFAULT_FRONTEND_ORIGIN = 'https://inspiring-education-production-7521.up.railway.app';
 const DEFAULT_MOBILE_ORIGINS = ['capacitor://localhost', 'http://localhost', 'https://localhost'];
-const PRODUCTION_ORIGINS = String(process.env.CORS_ORIGINS || DEFAULT_FRONTEND_ORIGIN)
+const PRODUCTION_ORIGINS = String(process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean)
@@ -103,18 +102,17 @@ const API_PORT = parseInt(process.env.PORT, 10) || 5000;
 const SIGNALING_PORT = parseInt(process.env.SIGNALING_PORT, 10) || 4000;
 
 initDatabase().then(() => {
-  // ===== EXPRESS API SERVER =====
-  app.listen(API_PORT, () => {
+  // Railway exposes one public HTTP port. REST and Socket.IO share it.
+  const apiServer = http.createServer(app);
+  apiServer.listen(API_PORT, () => {
     console.log(`Novarix backend running on port ${API_PORT}`);
   });
 
-  // ===== SOCKET.IO SIGNALING + REALTIME CHAT SERVER (port 4000) =====
+  // ===== SOCKET.IO SIGNALING + REALTIME CHAT SERVER =====
   let io = null;
   try {
     const { Server } = require('socket.io');
-    const signalingApp = express();
-    const signalingServer = http.createServer(signalingApp);
-    io = new Server(signalingServer, {
+    io = new Server(apiServer, {
       cors: {
         origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
         credentials: true,
@@ -363,9 +361,7 @@ initDatabase().then(() => {
       });
     });
 
-    signalingServer.listen(SIGNALING_PORT, () => {
-      console.log(`Novarix Socket.IO (signaling + chat) running on port ${SIGNALING_PORT}`);
-    });
+    console.log(`Novarix Socket.IO (signaling + chat) sharing port ${API_PORT}`);
   } catch (err) {
     console.warn('[WARN] socket.io tidak tersedia. Fitur realtime chat dan calls tidak akan berjalan.');
     console.warn('[WARN] Jalankan: npm install socket.io di folder backend');

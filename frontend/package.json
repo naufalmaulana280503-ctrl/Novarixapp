@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:mobile": "cross-env VITE_API_ORIGIN=https://novarixapp-production.up.railway.app vite build",
+    "build:mobile": "cross-env VITE_API_URL=https://novarixapp-production.up.railway.app vite build",
     "android:add": "npx cap add android",
     "android:sync": "npm run build:mobile && npx cap sync android",
     "apk:debug": "npm run android:sync && cd android && gradlew.bat assembleDebug",

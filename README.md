@@ -82,7 +82,7 @@ npm run dev
 
 The backend will run on `http://localhost:5000`
 
-### Railway deployment
+### Railway deployment (backend only)
 
 Create a PostgreSQL service in Railway and link it to the backend service. Railway
 will provide `DATABASE_URL` automatically. If your Railway setup exposes separate
@@ -96,7 +96,29 @@ npm install
 npm start
 ```
 
-The backend runs on Railway's `PORT` and initializes the PostgreSQL schema on startup.
+The backend runs on Railway's `PORT`, initializes the existing PostgreSQL schema on
+startup, and serves REST plus Socket.IO from the same public URL. Set the Railway
+service root directory to `backend` (or deploy that directory as the service source).
+Required production variables are `DATABASE_URL` (the existing database),
+`JWT_SECRET`, `NODE_ENV=production`, `CORS_ORIGINS` (the exact Vercel URL),
+`APP_URL`/`BASE_URL` (the Vercel URL), and any configured email/Supabase variables.
+Do not copy local `.env` files into Railway or commit secrets.
+
+### Vercel deployment (frontend only)
+
+Import the repository into Vercel and set the project root directory to `frontend`.
+The included `frontend/vercel.json` builds `npm run build`, serves `dist`, and
+rewrites client-side routes to `index.html`. Set the Vercel environment variable
+`VITE_API_URL` to the public Railway backend URL, for example:
+
+```env
+VITE_API_URL=https://your-backend.up.railway.app
+```
+
+`VITE_API_URL` is embedded into the browser bundle, so it must never contain
+database credentials, JWT secrets, or Supabase service-role keys. The PWA
+`manifest.json` and `icon.jpg` remain in `frontend/public` and are copied into
+the Vercel `dist` output.
 
 ### 3. Frontend Setup
 
@@ -108,7 +130,7 @@ npm install
 npm run dev
 ```
 
-The frontend will run on `http://localhost:3000`
+The frontend will run on `http://localhost:5173`
 
 ### 4. Configure Email (Required for registration links)
 
