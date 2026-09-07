@@ -24,7 +24,7 @@ api.interceptors.request.use(
   (config) => {
     try {
       const token = localStorage.getItem('token')
-      if (token) {
+      if (token && !config.headers?.Authorization) {
         config.headers = { ...(config.headers || {}), Authorization: 'Bearer ' + token }
       }
     } catch (e) {

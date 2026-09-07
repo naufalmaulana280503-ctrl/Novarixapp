@@ -4,11 +4,15 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 const isConfigured = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder'))
-const enabledOAuthProviders = new Set(
-  String(import.meta.env.VITE_ENABLED_OAUTH_PROVIDERS || '')
+// Google is the supported first-party social login. Additional providers stay
+// opt-in so a button cannot be enabled accidentally before its dashboard
+// credentials and redirect settings have been configured.
+const configuredOAuthProviders = String(import.meta.env.VITE_ENABLED_OAUTH_PROVIDERS || '')
     .split(',')
     .map((provider) => provider.trim().toLowerCase())
     .filter(Boolean)
+const enabledOAuthProviders = new Set(
+  configuredOAuthProviders.length ? configuredOAuthProviders : ['google']
 )
 
 if (!isConfigured) {
@@ -35,8 +39,8 @@ if (isConfigured) {
 export const getSupabase = () => supabaseInstance
 export const isSupabaseConfigured = () => isConfigured
 
-// OAuth is opt-in so an enabled Supabase project cannot redirect users to a
-// raw provider error page when the provider is disabled in the dashboard.
+// The provider still has to be enabled in Supabase; this client-side allowlist
+// only controls which Novarix buttons may initiate a redirect.
 export const isOAuthProviderEnabled = (provider) => (
   isConfigured && enabledOAuthProviders.has(String(provider || '').trim().toLowerCase())
 )

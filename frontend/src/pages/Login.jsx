@@ -213,32 +213,7 @@ const Login = () => {
   }
 
   const handleGoogleLogin = async () => {
-    setError('')
-    setInfo('')
-    setSocialLoading('google')
-
-    try {
-      if (!isSupabaseConfigured()) {
-        throw new Error('Supabase belum dikonfigurasi.')
-      }
-
-      const supabase = getSupabase()
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/login`,
-        },
-      })
-
-      if (oauthError) {
-        console.error('Error logging in with Google:', oauthError.message)
-        throw oauthError
-      }
-    } catch (oauthError) {
-      console.error('Error logging in with Google:', oauthError?.message || oauthError)
-      setError(normalizeAuthError(oauthError, 'google'))
-      setSocialLoading('')
-    }
+    await handleSocialClick('google')
   }
 
   const openForgotPassword = () => {

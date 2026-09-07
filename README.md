@@ -120,6 +120,32 @@ database credentials, JWT secrets, or Supabase service-role keys. The PWA
 `manifest.json` and `icon.jpg` remain in `frontend/public` and are copied into
 the Vercel `dist` output.
 
+For Gmail login, also set these **public** Vercel build variables (the Supabase
+anon key is intended for browser use; never use the service-role key):
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_public_key
+VITE_ENABLED_OAUTH_PROVIDERS=google
+```
+
+In Supabase Dashboard, enable **Google** under Authentication > Providers and
+configure its Google OAuth client ID and secret. In Google Cloud Console, add
+Supabase's generated callback (`https://<project-ref>.supabase.co/auth/v1/callback`)
+as an authorized redirect URI for that OAuth client. Under Supabase
+Authentication > URL Configuration, add the deployed Vercel origin to **Site
+URL** and add this exact application redirect to **Redirect URLs**:
+
+```text
+https://your-vercel-domain.example/dashboard
+```
+
+Use the equivalent `http://localhost:5173/dashboard` URL for local testing.
+After changing Vercel variables, redeploy: Vite embeds `VITE_*` values at build
+time. The backend must also retain `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` so it can validate the returned Supabase session
+at `/api/auth/oauth`; these are backend-only variables.
+
 ### 3. Frontend Setup
 
 Open a new terminal:

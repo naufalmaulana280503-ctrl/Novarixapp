@@ -122,7 +122,12 @@ const isBotUsername = (username, displayName) => {
 };
 
 const register = async (req, res) => {
-  const { email, phone, password, username, displayName, termsAccepted } = req.body;
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const phone = String(req.body.phone || '').trim() || null;
+  const password = req.body.password;
+  const username = String(req.body.username || '').trim();
+  const displayName = String(req.body.displayName || '').trim();
+  const { termsAccepted } = req.body;
 
   if (!termsAccepted) {
     return res.status(400).json({ message: 'You must accept the terms and conditions to register' });
@@ -130,6 +135,10 @@ const register = async (req, res) => {
 
   if (!email && !phone) {
     return res.status(400).json({ message: 'Email or phone is required' });
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    return res.status(400).json({ message: 'Please provide a valid email address' });
   }
 
   if (!password || password.length < 6) {
@@ -149,9 +158,12 @@ const register = async (req, res) => {
     } else if (email) {
       query += 'email = ? OR username = ?';
       params.push(email, username);
-    } else {
+    } else if (phone) {
       query += 'phone = ? OR username = ?';
       params.push(phone, username);
+    } else {
+      query += 'username = ?';
+      params.push(username);
     }
 
     const [existing] = await pool.query(query, params);

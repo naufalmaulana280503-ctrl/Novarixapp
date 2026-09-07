@@ -156,7 +156,7 @@ const Register = () => {
     try {
       const payload = {
         fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim(),
         username: formData.username.trim(),
         displayName: formData.displayName.trim(),
