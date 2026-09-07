@@ -8,5 +8,13 @@
   "short_name": "Novarix",
   "start_url": "/",
   "theme_color": "#ffffff",
-  "description": "Social Media Reimagined"
+  "description": "Social Media Reimagined",
+  "icons": [
+    {
+      "src": "/icon.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
 }
