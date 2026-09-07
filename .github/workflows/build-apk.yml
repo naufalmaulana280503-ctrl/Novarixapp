@@ -57,7 +57,7 @@ jobs:
       - name: Verify Android build toolchain
         run: |
           java -version
-          chmod +x ./android/gradlew
+         chmod +x ./android/gradlew
           ./android/gradlew --version
 
       - name: Install frontend dependencies
@@ -66,11 +66,10 @@ jobs:
       - name: Build web assets and sync Capacitor
         run: npm run android:sync
 
-       - name: Build debug APK
-         run: |
-       chmod +x ./android/gradlew
-       ./android/gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
-     working-directory: frontend
+     - name: Build debug APK
+       run: |
+         chmod +x ./android/gradlew
+         ./android/gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
