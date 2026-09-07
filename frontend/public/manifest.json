@@ -1,0 +1,12 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Novarix",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Novarix",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "description": "Social Media Reimagined"
+}
