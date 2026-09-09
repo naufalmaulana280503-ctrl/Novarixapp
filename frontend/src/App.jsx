@@ -5,6 +5,7 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ConfirmEmail from './pages/ConfirmEmail'
+import OAuthCallback from './pages/OAuthCallback'
 import Dashboard from './pages/Dashboard'
 import Feed from './pages/Feed'
 import Upload from './pages/Upload'
@@ -180,6 +181,7 @@ const App = () => {
             }
           />
           <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
+          <Route path="/auth/callback" element={<OAuthCallback />} />
           <Route
             path="/dashboard"
             element={
