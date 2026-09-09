@@ -32,11 +32,12 @@ const oauthLogin = async (req, res) => {
   try {
     const accessToken = req.headers.authorization?.replace(/^Bearer\s+/i, '');
     if (!accessToken) return res.status(401).json({ message: 'Supabase access token is required' });
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const supabaseServerKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!process.env.SUPABASE_URL || !supabaseServerKey) {
       return res.status(503).json({ message: 'Supabase OAuth backend belum dikonfigurasi' });
     }
     const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${accessToken}`, apikey: process.env.SUPABASE_SERVICE_ROLE_KEY },
+      headers: { Authorization: `Bearer ${accessToken}`, apikey: supabaseServerKey },
     });
     if (!response.ok) return res.status(401).json({ message: 'Supabase session tidak valid' });
     const identity = await response.json();

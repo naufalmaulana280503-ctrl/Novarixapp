@@ -142,9 +142,10 @@ https://your-vercel-domain.example/dashboard
 
 Use the equivalent `http://localhost:5173/dashboard` URL for local testing.
 After changing Vercel variables, redeploy: Vite embeds `VITE_*` values at build
-time. The backend must also retain `SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY` so it can validate the returned Supabase session
-at `/api/auth/oauth`; these are backend-only variables.
+time. The backend must also retain `SUPABASE_URL` and `SUPABASE_SECRET_KEY` so it can
+validate the returned Supabase session at `/api/auth/oauth`; the legacy
+`SUPABASE_SERVICE_ROLE_KEY` name is still supported. These are backend-only
+variables and must never be exposed to Vercel or the browser.
 
 ### 3. Frontend Setup
 
