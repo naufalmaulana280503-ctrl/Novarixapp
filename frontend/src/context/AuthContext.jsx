@@ -41,7 +41,6 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (e) {}
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -58,16 +57,28 @@ export const AuthProvider = ({ children }) => {
         console.error('OAuth session sync failed:', error?.response?.data?.message || error.message)
       }
     }
-    const { data: initData } = supabase.auth.getSession()
-    if (initData?.session?.access_token) {
-      syncOAuthSession(initData.session)
-    }
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'AUTH_EMAIL_OTP_SESSION_EXPIRED' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        syncOAuthSession(session)
+    setSyncing(true)
+    supabase.auth.getSession().then(async ({ data: initData }) => {
+      await syncOAuthSession(initData?.session)
+      if (mounted) {
+        setSyncing(false)
+        setLoading(false)
+      }
+    }).catch((error) => {
+      console.error('OAuth session initialization failed:', error?.message || error)
+      if (mounted) {
+        setSyncing(false)
+        setLoading(false)
       }
     })
-    setSyncing(false)
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'AUTH_EMAIL_OTP_SESSION_EXPIRED' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setSyncing(true)
+        syncOAuthSession(session).finally(() => {
+          if (mounted) setSyncing(false)
+        })
+      }
+    })
     return () => { mounted = false; data?.subscription?.unsubscribe?.() }
   }, [])
 

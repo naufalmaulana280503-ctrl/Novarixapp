@@ -117,7 +117,7 @@ const nativeOAuthLogin = async (provider, { onError, onSuccess, onLoading }) => 
       throw new Error('OAuth provider is not enabled')
     }
 
-    const redirectTo = typeof window === 'undefined' ? '/auth/callback' : `${window.location.origin}/auth/callback`
+    const redirectTo = typeof window === 'undefined' ? '/dashboard' : `${window.location.origin}/dashboard`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: normalizedProvider,
       options: {
