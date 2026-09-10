@@ -96,6 +96,43 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
+const AuthenticatingRoute = ({ children }) => {
+  const { currentUser, loading, syncing } = useAuth()
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0f0f0f',
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid #262626',
+          borderTopColor: '#0891b2',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+        }}></div>
+      </div>
+    )
+  }
+
+  // While the OAuth session is being synced to Novarix backend, keep
+  // showing children (the callback page) instead of redirecting to /login.
+  if (syncing && !currentUser) {
+    return children
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />
+  }
+
+  return children
+}
+
 const RedirectAuthenticated = ({ children }) => {
   const { currentUser, loading } = useAuth()
 
@@ -181,7 +218,8 @@ const App = () => {
             }
           />
           <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
-          <Route path="/auth/callback" element={<OAuthCallback />} />
+          <Route path="/auth/callback" element={<AuthenticatingRoute><OAuthCallback /></AuthenticatingRoute>} />
+          <Route path="/auth/callback/" element={<AuthenticatingRoute><OAuthCallback /></AuthenticatingRoute>} />
           <Route
             path="/dashboard"
             element={

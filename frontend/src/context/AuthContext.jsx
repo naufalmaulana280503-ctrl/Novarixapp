@@ -7,6 +7,7 @@ const AuthContext = createContext()
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
 
   // app-level UI settings
   const [theme, setThemeState] = useState(() => localStorage.getItem('theme') || 'dark')
@@ -57,8 +58,16 @@ export const AuthProvider = ({ children }) => {
         console.error('OAuth session sync failed:', error?.response?.data?.message || error.message)
       }
     }
-    supabase.auth.getSession().then(({ data }) => syncOAuthSession(data?.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => syncOAuthSession(session))
+    const { data: initData } = supabase.auth.getSession()
+    if (initData?.session?.access_token) {
+      syncOAuthSession(initData.session)
+    }
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'AUTH_EMAIL_OTP_SESSION_EXPIRED' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        syncOAuthSession(session)
+      }
+    })
+    setSyncing(false)
     return () => { mounted = false; data?.subscription?.unsubscribe?.() }
   }, [])
 
@@ -230,6 +239,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     loading,
+    syncing,
     theme,
     setTheme,
     antiSpy,

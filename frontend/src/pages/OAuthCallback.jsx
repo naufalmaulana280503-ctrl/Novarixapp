@@ -19,19 +19,21 @@ const OAuthCallback = () => {
         return
       }
 
-      // Supabase handles the OAuth callback automatically via detectSessionInUrl.
-      // We just need to grab the session and sync to Novarix backend.
+      // Supabase client already parsed the URL callback automatically (detectSessionInUrl)
+      // so the session is now in the client store. Grab it and sync to Novarix backend.
       const { data: { session }, error } = await supabase.auth.getSession()
 
-      if (error) {
-        console.error('OAuth callback error:', error)
-        navigate('/login?error=oauth_failed', { replace: true })
+      if (error || !session?.access_token) {
+        if (error) console.error('OAuth callback error:', error)
+        navigate('/login?error=oauth_no_session', { replace: true })
         return
       }
-
-      if (!session?.access_token) {
-        // No session — maybe user cancelled or error. Redirect to login with message.
-        navigate('/login?error=oauth_no_session', { replace: true })
+      // Only proceed if the user is genuinely not yet authenticated in Novarix.
+      // If a Novarix token already exists (e.g. parallel email login), skip the
+      // backend sync to avoid overwriting the existing session.
+      const existingToken = localStorage.getItem('token')
+      if (existingToken) {
+        window.location.href = '/dashboard'
         return
       }
 
@@ -54,10 +56,10 @@ const OAuthCallback = () => {
         const { token, user } = await res.json()
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(user))
-        navigate('/dashboard', { replace: true })
+        window.location.href = '/dashboard'
       } catch (err) {
         console.error('OAuth callback network error:', err)
-        navigate('/login?error=oauth_network_error', { replace: true })
+        window.location.href = '/login?error=oauth_network_error'
       }
     }
 
