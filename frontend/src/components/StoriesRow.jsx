@@ -8,6 +8,7 @@ import { Plus } from 'lucide-react'
 const StoriesRow = () => {
   const [stories, setStories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
   const { currentUser } = useAuth()
   const { addToast } = useToast()
@@ -19,9 +20,14 @@ const StoriesRow = () => {
   const fetchStories = async () => {
     try {
       setLoading(true)
+      setError('')
       const res = await storiesApi.getStoriesFeed()
+      const payload = res?.data
+      const storyList = Array.isArray(payload)
+        ? payload
+        : (Array.isArray(payload?.stories) ? payload.stories : [])
       const groupedByUser = {}
-      res.forEach((story) => {
+      storyList.forEach((story) => {
         if (!groupedByUser[story.userId]) {
           groupedByUser[story.userId] = story
         }
@@ -29,6 +35,8 @@ const StoriesRow = () => {
       setStories(Object.values(groupedByUser))
     } catch (err) {
       console.error('Gagal fetch stories:', err)
+      setError(err?.response?.data?.message || 'Story tidak dapat dimuat.')
+      setStories([])
     } finally {
       setLoading(false)
     }
@@ -53,6 +61,12 @@ const StoriesRow = () => {
   return (
     <div className="stories-row">
       <div className="stories-scroll">
+        {error && (
+          <div className="stories-empty" role="status">
+            <p>{error}</p>
+            <button type="button" onClick={fetchStories}>Coba lagi</button>
+          </div>
+        )}
         {/* Upload Story — your own story with + button */}
         <div
           className="stories-item"

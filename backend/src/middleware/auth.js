@@ -5,7 +5,10 @@ const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Access token required' });
+      return res.status(401).json({
+        code: 'AUTH_TOKEN_REQUIRED',
+        message: 'Access token required',
+      });
     }
 
     const token = authHeader.split(' ')[1];
@@ -13,13 +16,19 @@ const authenticate = async (req, res, next) => {
 
     const [users] = await pool.query('SELECT id FROM users WHERE id = ?', [decoded.userId]);
     if (users.length === 0) {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(401).json({
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Invalid token',
+      });
     }
 
     req.userId = decoded.userId;
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(401).json({
+      code: 'AUTH_TOKEN_INVALID',
+      message: 'Invalid or expired token',
+    });
   }
 };
 

@@ -20,6 +20,23 @@ const isRetriableNetworkError = (error) => (
   && error?.code !== 'ERR_CANCELED'
 )
 
+// Only the authentication middleware can invalidate the local session. A
+// protected resource may also return 401 for a resource-specific reason
+// (missing account, role restriction, etc.); those failures must stay in the
+// owning screen instead of logging a valid session out.
+export const isInvalidAuthTokenResponse = (error) => {
+  if (error?.response?.status !== 401) return false
+
+  const responseCode = error.response?.data?.code
+  if (responseCode === 'AUTH_TOKEN_INVALID') return true
+  if (responseCode === 'AUTH_TOKEN_REQUIRED') return false
+
+  // Backwards compatibility for deployed API versions before the stable
+  // response codes were added to the auth middleware.
+  const message = String(error.response?.data?.message || '').trim()
+  return message === 'Invalid token' || message === 'Invalid or expired token'
+}
+
 api.interceptors.request.use(
   (config) => {
     try {
@@ -59,7 +76,7 @@ api.interceptors.response.use(
     }
 
     try {
-      if (error.response?.status === 401) {
+      if (isInvalidAuthTokenResponse(error)) {
         // Clear stored auth and optionally redirect to login
         // OAuth exchange failures are handled by the callback page. A global
         // redirect here would hide the provider/backend error and race the

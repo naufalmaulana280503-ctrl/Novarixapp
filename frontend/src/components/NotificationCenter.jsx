@@ -29,6 +29,7 @@ export default function NotificationCenter() {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const panelRef = useRef(null)
@@ -73,9 +74,15 @@ export default function NotificationCenter() {
   }, [])
 
   const handleMarkAllRead = async () => {
-    await notificationsApi.markAllRead()
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
-    setUnreadCount(0)
+    try {
+      setActionError('')
+      await notificationsApi.markAllRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+      setUnreadCount(0)
+    } catch (error) {
+      console.warn('Failed to mark notifications as read', error)
+      setActionError('Notifikasi belum dapat diperbarui.')
+    }
   }
 
   const handleLoadMore = () => {
@@ -101,6 +108,7 @@ export default function NotificationCenter() {
               </button>
             )}
           </div>
+          {actionError && <div role="alert" style={styles.actionError}>{actionError}</div>}
 
           <div style={styles.notifList}>
             {notifications.length === 0 && !loading && (
@@ -210,5 +218,11 @@ const styles = {
   loadMoreBtn: {
     display: 'block', width: '100%', padding: '12px', background: 'transparent',
     border: 'none', color: '#0891b2', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+  },
+  actionError: {
+    padding: '8px 16px',
+    color: '#fca5a5',
+    fontSize: 12,
+    borderBottom: '1px solid var(--border-color)',
   },
 }
