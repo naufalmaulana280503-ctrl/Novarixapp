@@ -32,9 +32,9 @@ if (isConfigured) {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        // URL processing is explicit in restoreSessionFromUrl(). Leaving the
-        // SDK auto-handler enabled would race with exchangeCodeForSession().
-        detectSessionInUrl: false,
+        // Let the SDK process callback URLs as its primary path. The explicit
+        // restoreSessionFromUrl fallback below handles slow or legacy flows.
+        detectSessionInUrl: true,
         flowType: 'pkce',
       },
     })
@@ -78,10 +78,6 @@ export const restoreSessionFromUrl = () => {
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
     const authCode = searchParams.get('code')
-    // Newer auth-js versions can bind a callback to a particular concurrent
-    // PKCE flow. Passing it through prevents a second tab from consuming the
-    // wrong verifier. Older versions ignore the optional argument.
-    const flowId = searchParams.get('sb_flow_id')
     const authError = (
       searchParams.get('error_description')
       || searchParams.get('error')
@@ -105,12 +101,20 @@ export const restoreSessionFromUrl = () => {
           access_token: accessToken,
           refresh_token: refreshToken,
         })
-        : await supabaseInstance.auth.exchangeCodeForSession(
-          authCode,
-          flowId ? { flowId } : undefined,
-        )
+        : await supabaseInstance.auth.exchangeCodeForSession(authCode)
     } catch (error) {
       result = { data: { session: null }, error }
+    }
+
+    if (!result.data?.session) {
+      for (let attempt = 0; attempt < 3 && !result.data?.session; attempt += 1) {
+        const sessionResult = await supabaseInstance.auth.getSession()
+        if (sessionResult.data?.session) {
+          result = { data: sessionResult.data, error: null }
+          break
+        }
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 200))
+      }
     }
 
     // Remove bearer tokens and one-time PKCE codes from the address bar even
