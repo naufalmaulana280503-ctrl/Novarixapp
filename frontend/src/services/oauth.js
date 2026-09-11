@@ -15,6 +15,7 @@ export const syncSupabaseSession = async (session) => {
   const request = (async () => {
     try {
       const response = await api.post('/auth/oauth', {}, {
+        __isOAuthExchange: true,
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       const { token, user } = response.data

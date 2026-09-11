@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || '').trim()
+const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
-const isConfigured = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder'))
+const isConfigured = Boolean(
+  /^https?:\/\//i.test(supabaseUrl)
+  && supabaseAnonKey
+  && !supabaseUrl.includes('placeholder')
+  && !/^(your[_-]|replace[_-]|placeholder)/i.test(supabaseAnonKey),
+)
 // Google is the supported first-party social login. Additional providers stay
 // opt-in so a button cannot be enabled accidentally before its dashboard
 // credentials and redirect settings have been configured.
@@ -53,6 +58,8 @@ const removeOAuthParams = () => {
   cleanUrl.searchParams.delete('error_code')
   cleanUrl.searchParams.delete('error_description')
   cleanUrl.searchParams.delete('error_uri')
+  cleanUrl.searchParams.delete('sb_flow_id')
+  cleanUrl.searchParams.delete('state')
   window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}`)
 }
 
@@ -71,6 +78,10 @@ export const restoreSessionFromUrl = () => {
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
     const authCode = searchParams.get('code')
+    // Newer auth-js versions can bind a callback to a particular concurrent
+    // PKCE flow. Passing it through prevents a second tab from consuming the
+    // wrong verifier. Older versions ignore the optional argument.
+    const flowId = searchParams.get('sb_flow_id')
     const authError = (
       searchParams.get('error_description')
       || searchParams.get('error')
@@ -94,7 +105,10 @@ export const restoreSessionFromUrl = () => {
           access_token: accessToken,
           refresh_token: refreshToken,
         })
-        : await supabaseInstance.auth.exchangeCodeForSession(authCode)
+        : await supabaseInstance.auth.exchangeCodeForSession(
+          authCode,
+          flowId ? { flowId } : undefined,
+        )
     } catch (error) {
       result = { data: { session: null }, error }
     }

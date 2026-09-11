@@ -32,14 +32,30 @@ const oauthLogin = async (req, res) => {
   try {
     const accessToken = req.headers.authorization?.replace(/^Bearer\s+/i, '');
     if (!accessToken) return res.status(401).json({ message: 'Supabase access token is required' });
-    const supabaseServerKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!process.env.SUPABASE_URL || !supabaseServerKey) {
+    // /auth/v1/user only needs an API key plus the user's bearer token.
+    // Prefer a server key for existing deployments, but allow the least-
+    // privileged public key so OAuth does not depend on a service-role secret.
+    const supabaseApiKey = process.env.SUPABASE_SECRET_KEY
+      || process.env.SUPABASE_SERVICE_ROLE_KEY
+      || process.env.SUPABASE_ANON_KEY
+      || process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!process.env.SUPABASE_URL || !supabaseApiKey) {
       return res.status(503).json({ message: 'Supabase OAuth backend belum dikonfigurasi' });
     }
+    const supabaseServerKey = supabaseApiKey;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${accessToken}`, apikey: supabaseServerKey },
+      signal: controller.signal,
     });
-    if (!response.ok) return res.status(401).json({ message: 'Supabase session tidak valid' });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return res.status(401).json({ message: 'Supabase session tidak valid' });
+      }
+      return res.status(502).json({ message: 'Supabase OAuth validation unavailable' });
+    }
     const identity = await response.json();
     const email = String(identity.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ message: 'Akun OAuth tidak memiliki email' });
@@ -88,7 +104,11 @@ const oauthLogin = async (req, res) => {
     });
   } catch (err) {
     console.error('OAuth login error:', err);
-    res.status(500).json({ message: 'Gagal menyinkronkan login OAuth' });
+    res.status(err?.name === 'AbortError' ? 502 : 500).json({
+      message: err?.name === 'AbortError'
+        ? 'Supabase OAuth validation timed out'
+        : 'Gagal menyinkronkan login OAuth',
+    });
   }
 };
 

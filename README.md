@@ -142,10 +142,13 @@ https://your-vercel-domain.example/auth/callback
 
 Use the equivalent `http://localhost:5173/auth/callback` URL for local testing.
 After changing Vercel variables, redeploy: Vite embeds `VITE_*` values at build
-time. The backend must also retain `SUPABASE_URL` and `SUPABASE_SECRET_KEY` so it can
-validate the returned Supabase session at `/api/auth/oauth`; the legacy
-`SUPABASE_SERVICE_ROLE_KEY` name is still supported. These are backend-only
-variables and must never be exposed to Vercel or the browser.
+time. The backend must also retain `SUPABASE_URL` and either
+`SUPABASE_SECRET_KEY` (preferred for existing deployments) or the
+least-privilege `SUPABASE_ANON_KEY` so it can validate the returned Supabase
+session at `/api/auth/oauth`; the legacy `SUPABASE_SERVICE_ROLE_KEY` name is
+still supported. These are backend-only variables and must never be exposed to
+Vercel or the browser. The Vercel `VITE_SUPABASE_ANON_KEY` is public and must
+not be used as a service-role key.
 
 ### 3. Frontend Setup
 
