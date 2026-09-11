@@ -41,7 +41,7 @@ const oauthLogin = async (req, res) => {
     });
     if (!response.ok) return res.status(401).json({ message: 'Supabase session tidak valid' });
     const identity = await response.json();
-    const email = identity.email;
+    const email = String(identity.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ message: 'Akun OAuth tidak memiliki email' });
 
     const [existing] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);

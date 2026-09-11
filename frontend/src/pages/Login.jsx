@@ -82,6 +82,13 @@ const normalizeAuthError = (error, provider = '', context = 'login') => {
   return 'Gagal login. Periksa kembali kredensial Anda lalu coba lagi.'
 }
 
+const getOAuthCallbackMessage = (code) => ({
+  oauth_not_configured: 'Login sosial belum dikonfigurasi. Gunakan email/username dan password.',
+  oauth_client_missing: 'Login sosial sedang tidak tersedia. Coba lagi nanti.',
+  oauth_no_session: 'Google tidak mengembalikan sesi login. Coba lagi.',
+  oauth_sync_failed: 'Login Google berhasil, tetapi sesi Novarix gagal dibuat. Coba lagi.',
+}[code] || '')
+
 const GmailIcon = ({ className = '' }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
     <path d="M3 18V6l9 6 9-6v12" fill="none" stroke="#EA4335" strokeWidth="2.5" strokeLinejoin="round" />
@@ -117,7 +124,11 @@ const nativeOAuthLogin = async (provider, { onError, onSuccess, onLoading }) => 
       throw new Error('OAuth provider is not enabled')
     }
 
-    const redirectTo = typeof window === 'undefined' ? '/dashboard' : `${window.location.origin}/dashboard`
+    // Use a dedicated callback so PKCE exchange and backend session sync have
+    // one deterministic entry point before protected-route evaluation.
+    const redirectTo = typeof window === 'undefined'
+      ? '/auth/callback'
+      : `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: normalizedProvider,
       options: {
@@ -165,6 +176,17 @@ const Login = () => {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [forgotOpen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const callbackMessage = getOAuthCallbackMessage(params.get('error'))
+    if (callbackMessage) {
+      setError(callbackMessage)
+      params.delete('error')
+      window.history.replaceState({}, document.title, `${window.location.pathname}${params.toString() ? `?${params}` : ''}`)
+    }
+  }, [])
 
   const handleSubmit = async (event) => {
     event.preventDefault()

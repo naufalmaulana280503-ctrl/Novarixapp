@@ -5,7 +5,9 @@ import { api } from './api'
 api.interceptors.request.use((config) => {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    if (token) {
+    // OAuth exchange requests provide the Supabase access token explicitly.
+    // Never replace it with the stored Novarix API token.
+    if (token && !config.headers?.Authorization) {
       config.headers = { ...(config.headers || {}), Authorization: 'Bearer ' + token }
     }
   } catch (e) {

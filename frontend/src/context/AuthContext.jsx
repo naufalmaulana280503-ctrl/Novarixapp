@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react'
 import { api } from '../services/api'
-import { supabase } from '../services/supabase'
+import { restoreSessionFromUrl, supabase } from '../services/supabase'
+import { syncSupabaseSession } from '../services/oauth'
 
 const AuthContext = createContext()
 
@@ -46,25 +47,37 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let mounted = true
     const syncOAuthSession = async (session) => {
-      if (!session?.access_token) return
+      if (!session?.access_token) return false
       try {
-        const response = await api.post('/auth/oauth', {}, { headers: { Authorization: `Bearer ${session.access_token}` } })
-        if (!mounted) return
+        const response = { data: await syncSupabaseSession(session) }
+        if (!mounted) return false
         localStorage.setItem('token', response.data.token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
         setCurrentUser(response.data.user)
+        return true
       } catch (error) {
         console.error('OAuth session sync failed:', error?.response?.data?.message || error.message)
+        return false
       }
     }
-    setSyncing(true)
-    supabase.auth.getSession().then(async ({ data: initData }) => {
-      await syncOAuthSession(initData?.session)
-      if (mounted) {
-        setSyncing(false)
-        setLoading(false)
+    const initializeSession = async () => {
+      const urlSession = await restoreSessionFromUrl()
+      if (urlSession.error) {
+        console.error('OAuth URL session restore failed:', urlSession.error.message)
       }
-    }).catch((error) => {
+      const { data: initData } = urlSession.handled
+        ? { data: { session: urlSession.session } }
+        : await supabase.auth.getSession()
+
+      if (initData?.session?.access_token) {
+        setSyncing(true)
+        await syncOAuthSession(initData.session)
+        if (mounted) setSyncing(false)
+      }
+      if (mounted) setLoading(false)
+    }
+
+    initializeSession().catch((error) => {
       console.error('OAuth session initialization failed:', error?.message || error)
       if (mounted) {
         setSyncing(false)
@@ -72,6 +85,12 @@ export const AuthProvider = ({ children }) => {
       }
     })
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        setCurrentUser(null)
+        return
+      }
       if (event === 'AUTH_EMAIL_OTP_SESSION_EXPIRED' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setSyncing(true)
         syncOAuthSession(session).finally(() => {
@@ -164,6 +183,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setCurrentUser(null)
+    supabase.auth.signOut().catch(() => {})
   }
 
   // helper wrapper to update currentUser and persist to localStorage

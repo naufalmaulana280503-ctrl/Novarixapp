@@ -66,9 +66,9 @@ class ErrorBoundary extends React.Component {
 }
 
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth()
+  const { currentUser, loading, syncing } = useAuth()
 
-  if (loading) {
+  if (loading || syncing) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -120,8 +120,8 @@ const AuthenticatingRoute = ({ children }) => {
     )
   }
 
-  // While the OAuth session is being synced to Novarix backend, keep
-  // showing children (the callback page) instead of redirecting to /login.
+  // While loading Novarix session from URL hash or syncing OAuth to backend,
+  // keep rendering children instead of redirecting to /login.
   if (syncing && !currentUser) {
     return children
   }
@@ -218,8 +218,9 @@ const App = () => {
             }
           />
           <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
-          <Route path="/auth/callback" element={<AuthenticatingRoute><OAuthCallback /></AuthenticatingRoute>} />
-          <Route path="/auth/callback/" element={<AuthenticatingRoute><OAuthCallback /></AuthenticatingRoute>} />
+          {/* OAuth callback must mount before auth redirects can send it to /login. */}
+          <Route path="/auth/callback" element={<OAuthCallback />} />
+          <Route path="/auth/callback/" element={<OAuthCallback />} />
           <Route
             path="/dashboard"
             element={

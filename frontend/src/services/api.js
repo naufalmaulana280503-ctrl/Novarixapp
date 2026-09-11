@@ -63,10 +63,14 @@ api.interceptors.response.use(
         // Clear stored auth and optionally redirect to login
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        // OAuth exchange failures are handled by the callback page. A global
+        // redirect here would hide the provider/backend error and race the
+        // callback before it can finish restoring the Supabase session.
+        const isOAuthExchange = String(error.config?.url || '').endsWith('/auth/oauth')
         // If running in browser, navigate to login to force re-auth
         if (typeof window !== 'undefined') {
           // avoid infinite redirect loop if already on /login
-          if (!window.location.pathname.startsWith('/login')) {
+          if (!isOAuthExchange && !window.location.pathname.startsWith('/login')) {
             window.location.href = '/login'
           }
         }

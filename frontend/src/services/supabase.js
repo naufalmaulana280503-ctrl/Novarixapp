@@ -27,7 +27,10 @@ if (isConfigured) {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true,
+        // URL processing is explicit in restoreSessionFromUrl(). Leaving the
+        // SDK auto-handler enabled would race with exchangeCodeForSession().
+        detectSessionInUrl: false,
+        flowType: 'pkce',
       },
     })
   } catch (err) {
@@ -38,6 +41,77 @@ if (isConfigured) {
 
 export const getSupabase = () => supabaseInstance
 export const isSupabaseConfigured = () => isConfigured
+
+let urlRestorePromise = null
+
+const removeOAuthParams = () => {
+  if (typeof window === 'undefined') return
+  const cleanUrl = new URL(window.location.href)
+  cleanUrl.hash = ''
+  cleanUrl.searchParams.delete('code')
+  cleanUrl.searchParams.delete('error')
+  cleanUrl.searchParams.delete('error_code')
+  cleanUrl.searchParams.delete('error_description')
+  cleanUrl.searchParams.delete('error_uri')
+  window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}`)
+}
+
+export const restoreSessionFromUrl = () => {
+  if (!supabaseInstance || typeof window === 'undefined') {
+    return Promise.resolve({ session: null, error: null, handled: false })
+  }
+
+  // AuthProvider and /auth/callback can both run during the same render.
+  // Share one exchange so a PKCE code is never consumed twice.
+  if (urlRestorePromise) return urlRestorePromise
+
+  urlRestorePromise = (async () => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const searchParams = new URLSearchParams(window.location.search)
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const authCode = searchParams.get('code')
+    const authError = (
+      searchParams.get('error_description')
+      || searchParams.get('error')
+      || hashParams.get('error_description')
+      || hashParams.get('error')
+    )
+
+    if (authError) {
+      removeOAuthParams()
+      return { session: null, error: new Error(authError), handled: true }
+    }
+
+    if (!((accessToken && refreshToken) || authCode)) {
+      return { session: null, error: null, handled: false }
+    }
+
+    let result
+    try {
+      result = accessToken && refreshToken
+        ? await supabaseInstance.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+        : await supabaseInstance.auth.exchangeCodeForSession(authCode)
+    } catch (error) {
+      result = { data: { session: null }, error }
+    }
+
+    // Remove bearer tokens and one-time PKCE codes from the address bar even
+    // when the exchange fails; the caller will show a safe generic error.
+    removeOAuthParams()
+
+    return {
+      session: result.data?.session || null,
+      error: result.error || null,
+      handled: true,
+    }
+  })()
+
+  return urlRestorePromise
+}
 
 // The provider still has to be enabled in Supabase; this client-side allowlist
 // only controls which Novarix buttons may initiate a redirect.

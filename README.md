@@ -137,10 +137,10 @@ Authentication > URL Configuration, add the deployed Vercel origin to **Site
 URL** and add this exact application redirect to **Redirect URLs**:
 
 ```text
-https://your-vercel-domain.example/dashboard
+https://your-vercel-domain.example/auth/callback
 ```
 
-Use the equivalent `http://localhost:5173/dashboard` URL for local testing.
+Use the equivalent `http://localhost:5173/auth/callback` URL for local testing.
 After changing Vercel variables, redeploy: Vite embeds `VITE_*` values at build
 time. The backend must also retain `SUPABASE_URL` and `SUPABASE_SECRET_KEY` so it can
 validate the returned Supabase session at `/api/auth/oauth`; the legacy

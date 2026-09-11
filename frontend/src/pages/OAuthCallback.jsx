@@ -1,13 +1,18 @@
 import '../index.css'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getSupabase, isSupabaseConfigured } from '../services/supabase'
+import { getSupabase, isSupabaseConfigured, restoreSessionFromUrl } from '../services/supabase'
+import { syncSupabaseSession } from '../services/oauth'
 
 const OAuthCallback = () => {
   const navigate = useNavigate()
+  const readRef = useRef(false)
 
   useEffect(() => {
-    const handleOAuthCallback = async () => {
+    if (readRef.current) return
+    readRef.current = true
+
+    const processOAuthCallback = async () => {
       if (!isSupabaseConfigured()) {
         navigate('/login?error=oauth_not_configured', { replace: true })
         return
@@ -19,51 +24,30 @@ const OAuthCallback = () => {
         return
       }
 
-      // Supabase client already parsed the URL callback automatically (detectSessionInUrl)
-      // so the session is now in the client store. Grab it and sync to Novarix backend.
-      const { data: { session }, error } = await supabase.auth.getSession()
+      const restored = await restoreSessionFromUrl()
+      const sessionResult = restored.session
+        ? { data: { session: restored.session }, error: restored.error }
+        : restored.error
+          ? { data: { session: null }, error: restored.error }
+          : await supabase.auth.getSession()
+      const { data: { session }, error } = sessionResult
 
       if (error || !session?.access_token) {
         if (error) console.error('OAuth callback error:', error)
         navigate('/login?error=oauth_no_session', { replace: true })
         return
       }
-      // Only proceed if the user is genuinely not yet authenticated in Novarix.
-      // If a Novarix token already exists (e.g. parallel email login), skip the
-      // backend sync to avoid overwriting the existing session.
-      const existingToken = localStorage.getItem('token')
-      if (existingToken) {
-        window.location.href = '/dashboard'
-        return
-      }
 
       try {
-        // Sync the Supabase session to Novarix backend
-        const res = await fetch('/api/auth/oauth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        })
-
-        if (!res.ok) {
-          console.error('OAuth sync to backend failed:', res.status, await res.text())
-          navigate('/login?error=oauth_sync_failed', { replace: true })
-          return
-        }
-
-        const { token, user } = await res.json()
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-        window.location.href = '/dashboard'
+        await syncSupabaseSession(session)
+        navigate('/dashboard', { replace: true })
       } catch (err) {
-        console.error('OAuth callback network error:', err)
-        window.location.href = '/login?error=oauth_network_error'
+        console.error('OAuth callback sync failed:', err?.response?.data?.message || err.message)
+        navigate('/login?error=oauth_sync_failed', { replace: true })
       }
     }
 
-    handleOAuthCallback()
+    processOAuthCallback()
   }, [navigate])
 
   return (

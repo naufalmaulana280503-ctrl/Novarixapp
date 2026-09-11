@@ -14,11 +14,16 @@ if (IS_PRODUCTION && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET wajib dikonfigurasi di production');
 }
 const DEFAULT_MOBILE_ORIGINS = ['capacitor://localhost', 'http://localhost', 'https://localhost'];
-const PRODUCTION_ORIGINS = String(process.env.CORS_ORIGINS || '')
+const DEFAULT_WEB_ORIGINS = ['https://novarixapp.vercel.app'];
+const configuredCorsOrigins = String(process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim().replace(/\/+$/, ''))
-  .filter(Boolean)
-  .concat(DEFAULT_MOBILE_ORIGINS);
+  .filter(Boolean);
+const configuredAppOrigins = [process.env.APP_URL, process.env.BASE_URL]
+  .map((origin) => String(origin || '').trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+const PRODUCTION_ORIGINS = configuredCorsOrigins
+  .concat(configuredAppOrigins, DEFAULT_WEB_ORIGINS, DEFAULT_MOBILE_ORIGINS);
 
 // Any loopback origin is allowed in development so the app works no matter
 // whether it is opened via localhost, 127.0.0.1 or [::1], and on any dev port.
