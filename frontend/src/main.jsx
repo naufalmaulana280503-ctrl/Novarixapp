@@ -9,6 +9,14 @@ import './index.css'
 import './services/authPatch_v2'
 import ErrorBoundary from './components/ErrorBoundary'
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.warn('Novarix service worker registration failed:', error)
+    })
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
