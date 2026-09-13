@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { storiesApi } from '../services/api'
+import { API_ORIGIN } from '../services/backendUrl'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import VerifiedBadge from '../components/VerifiedBadge'
@@ -28,8 +29,8 @@ const StoryViewer = () => {
   const fetchStories = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await storiesApi.getUserStories(userId)
-      const list = Array.isArray(data) ? data : (Array.isArray(data?.stories) ? data.data.stories : [])
+      const { data } = await storiesApi.getUserStories(userId)
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.stories) ? data.stories : [])
       setStories(list)
     } catch (err) {
       console.error('Failed to fetch stories:', err)
@@ -183,7 +184,7 @@ const StoryViewer = () => {
       <div style={styles.storyContent} onClick={handleNext}>
         {currentStory.mediaType === 'video' || currentStory.mediaType === 'boomerang' ? (
           <video
-            src={currentStory.mediaUrl}
+            src={currentStory.mediaUrl?.startsWith('/') ? `${API_ORIGIN}${currentStory.mediaUrl}` : currentStory.mediaUrl}
             style={styles.media}
             autoPlay
             loop={currentStory.mediaType === 'boomerang'}
@@ -193,7 +194,7 @@ const StoryViewer = () => {
           />
         ) : (
           <img
-            src={currentStory.mediaUrl}
+            src={currentStory.mediaUrl?.startsWith('/') ? `${API_ORIGIN}${currentStory.mediaUrl}` : currentStory.mediaUrl}
             alt={currentStory.caption || 'Story'}
             style={styles.media}
             key={currentStory.id}
@@ -214,7 +215,7 @@ const StoryViewer = () => {
           <div
             style={{
               ...styles.userAvatar,
-              backgroundImage: currentStory.avatarUrl ? `url(${currentStory.avatarUrl})` : 'none',
+              backgroundImage: currentStory.avatarUrl ? `url(${currentStory.avatarUrl.startsWith('/') ? `${API_ORIGIN}${currentStory.avatarUrl}` : currentStory.avatarUrl})` : 'none',
             }}
           >
             {!currentStory.avatarUrl && (

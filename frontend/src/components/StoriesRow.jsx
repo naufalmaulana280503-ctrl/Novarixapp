@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { storiesApi } from '../services/api'
+import { API_ORIGIN } from '../services/backendUrl'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { Plus } from 'lucide-react'
@@ -77,7 +78,7 @@ const StoriesRow = () => {
           <div className="stories-avatar-ring stories-ring-self">
             <div className="stories-avatar-inner">
               {currentUser?.avatarUrl ? (
-                <img src={currentUser.avatarUrl} alt="Your story" className="stories-avatar-img" />
+                <img src={currentUser.avatarUrl.startsWith('/') ? `${API_ORIGIN}${currentUser.avatarUrl}` : currentUser.avatarUrl} alt="Your story" className="stories-avatar-img" />
               ) : (
                 <div className="stories-avatar-placeholder">
                   <span>{(currentUser?.displayName || 'U').charAt(0).toUpperCase()}</span>
@@ -103,7 +104,7 @@ const StoriesRow = () => {
             <div className="stories-avatar-ring stories-ring-unseen">
               <div className="stories-avatar-inner">
                 {story.avatarUrl ? (
-                  <img src={story.avatarUrl} alt={story.username} className="stories-avatar-img" />
+                  <img src={story.avatarUrl.startsWith('/') ? `${API_ORIGIN}${story.avatarUrl}` : story.avatarUrl} alt={story.username} className="stories-avatar-img" />
                 ) : (
                   <div className="stories-avatar-placeholder">
                     <span>{(story.displayName || story.username || 'U').charAt(0).toUpperCase()}</span>

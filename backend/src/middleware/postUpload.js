@@ -11,7 +11,10 @@ const ALLOWED_MIME = {
   'image/jpeg': { kind: 'image', ext: ['.jpg', '.jpeg'], maxBytes: MAX_IMAGE_BYTES },
   'image/jpg': { kind: 'image', ext: ['.jpg', '.jpeg'], maxBytes: MAX_IMAGE_BYTES },
   'image/png': { kind: 'image', ext: ['.png'], maxBytes: MAX_IMAGE_BYTES },
+  'image/webp': { kind: 'image', ext: ['.webp'], maxBytes: MAX_IMAGE_BYTES },
   'video/mp4': { kind: 'video', ext: ['.mp4'], maxBytes: MAX_VIDEO_BYTES },
+  'video/webm': { kind: 'video', ext: ['.webm'], maxBytes: MAX_VIDEO_BYTES },
+  'video/quicktime': { kind: 'video', ext: ['.mov', '.qt'], maxBytes: MAX_VIDEO_BYTES },
 };
 
 const publicUploadsRoot = path.join(__dirname, '..', '..', 'public', 'uploads');
@@ -40,7 +43,7 @@ const fileFilter = (req, file, cb) => {
   const rule = ALLOWED_MIME[file.mimetype];
   const ext = path.extname(file.originalname || '').toLowerCase();
   if (!rule || (rule.ext.length && !rule.ext.includes(ext))) {
-    return cb(new Error('Invalid file type. Only JPEG, PNG, and MP4 are allowed.'), false);
+    return cb(new Error('Invalid file type. Only JPEG, PNG, WEBP, MP4, WEBM, and MOV are allowed.'), false);
   }
   cb(null, true);
 };

@@ -7,6 +7,7 @@ import NewChatModal from '../components/NewChatModal'
 import MessageActions from '../components/MessageActions'
 import { useToast } from '../context/ToastContext'
 import signaling from '../services/signalingClient'
+import { ICE_SERVERS } from '../services/webrtc'
 
 import {
   MessageCircle, Phone, Video, Plus, Search,
@@ -627,12 +628,10 @@ const Chat = () => {
       if (selfVideoRef.current && type === 'video') selfVideoRef.current.srcObject = stream
 
       const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ]
+        iceServers: ICE_SERVERS
       })
       pcRef.current = pc
+      const callRoomId = 'call_dm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream))
       pc.ontrack = (ev) => {
@@ -642,22 +641,25 @@ const Chat = () => {
       }
       pc.onicecandidate = (ev) => {
         if (!ev.candidate) return
-        try { signaling.emit('call:ice', { roomId: activeCall?.roomId || callRoomId, candidate: ev.candidate }) } catch {}
+        try { signaling.emit('call:ice', { roomId: callRoomId, candidate: ev.candidate }) } catch {}
       }
       pendingCandidatesRef.current = []
       pc.onnegotiationneeded = async () => {}
 
-      const callRoomId = 'call_dm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
-
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
 
+      const callRecord = await api.post('/calls/initiate', {
+        type,
+        receiverId: targetUserId,
+      })
       setCallCamOn(type === 'video')
       setCallMicOn(true)
       setCallElapsed(0)
       const initial = {
         type,
         roomId: callRoomId,
+        callId: callRecord.data?.id,
         targetUserId,
         targetDisplayName,
         status: 'calling',
@@ -668,7 +670,7 @@ const Chat = () => {
 
       try {
         signaling.emit('call:start', {
-          callId: callRoomId,
+          callId: callRecord.data?.id,
           type,
           roomId: callRoomId,
           targetUserId,
@@ -680,17 +682,8 @@ const Chat = () => {
         })
       } catch (e) { console.warn('call:start error', e) }
 
-      const acceptTimeout = setTimeout(() => {
-        setActiveCall(prev => prev?.status === 'calling' ? { ...prev, status: 'connected', startedAt: Date.now() } : prev)
-        const startTs = Date.now()
-        callTimerRef.current = setInterval(() => {
-          setCallElapsed(Math.floor((Date.now() - startTs) / 1000))
-        }, 1000)
-      }, 3000)
-
       const onAnswered = ({ roomId, answer }) => {
         if (roomId !== callRoomId) return
-        clearTimeout(acceptTimeout)
         if (pc && answer && !pc.currentRemoteDescription) {
           try {
             pc.setRemoteDescription(new RTCSessionDescription(answer))
@@ -750,10 +743,7 @@ const Chat = () => {
           if (selfVideoRef.current && type === 'video') selfVideoRef.current.srcObject = stream
 
           const pc = new RTCPeerConnection({
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-            ]
+            iceServers: ICE_SERVERS
           })
           pcRef.current = pc
           stream.getTracks().forEach(track => pc.addTrack(track, stream))
@@ -813,6 +803,12 @@ const Chat = () => {
     if (selfVideoRef.current) selfVideoRef.current.srcObject = null
     if (peerVideoRef.current) peerVideoRef.current.srcObject = null
     if (pcRef.current) { try { pcRef.current.close() } catch {}; pcRef.current = null }
+    if (!remoteInitiated && activeCall?.callId) {
+      api.post(`/calls/${activeCall.callId}/end`, {
+        endedAt: new Date().toISOString(),
+        durationSeconds: callElapsed,
+      }).catch(() => {})
+    }
     setActiveCall(null)
     setCallElapsed(0)
   }

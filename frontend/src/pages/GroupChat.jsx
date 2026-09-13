@@ -7,6 +7,7 @@ import CreateGroupModal from '../components/CreateGroupModal'
 import MessageActions from '../components/MessageActions'
 import { useToast } from '../context/ToastContext'
 import signaling from '../services/signalingClient'
+import { ICE_SERVERS } from '../services/webrtc'
 
 import {
   MessageCircle, Phone, Video, Plus, Search,
@@ -700,6 +701,9 @@ const GroupChat = () => {
     if (invited > 0) {
       addToast({ type: 'success', text: `${invited} anggota ditambahkan` })
       fetchGroupMembers(id)
+    } else {
+      addToast({ type: 'error', text: 'Tidak ada anggota yang dapat ditambahkan. Pastikan kamu owner/admin.' })
+      return
     }
     setSelectedInvitees([])
     setInviteSearch('')
@@ -744,7 +748,7 @@ const GroupChat = () => {
       localStreamRef.current = stream
       if (selfVideoRef.current && type === 'video') selfVideoRef.current.srcObject = stream
 
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] })
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
       pcRef.current = pc
       stream.getTracks().forEach(track => pc.addTrack(track, stream))
       pc.ontrack = (ev) => { if (peerVideoRef.current && ev.streams?.[0]) peerVideoRef.current.srcObject = ev.streams[0] }
@@ -755,17 +759,11 @@ const GroupChat = () => {
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
       setCallCamOn(type === 'video'); setCallMicOn(true); setCallElapsed(0)
-      setActiveCall({ type, roomId: callRoomId, callId: null, groupId: id, groupName: group?.name || 'Group Call', status: 'calling', startedAt: null, role: 'initiator' })
-      try { const cr = await api.post('/calls/initiate', { type, groupId: id }); setActiveCall(p => p ? { ...p, callId: cr.data?.id } : p) } catch (err) { addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal catat panggilan' }) }
+      const callRecord = await api.post('/calls/initiate', { type, groupId: id })
+      setActiveCall({ type, roomId: callRoomId, callId: callRecord.data?.id, groupId: id, groupName: group?.name || 'Group Call', status: 'calling', startedAt: null, role: 'initiator' })
       try {
-        signaling.emit('call:start', { callId: callRoomId, type, roomId: callRoomId, groupId: id, offer, initiatorInfo: { userId: currentUser?.id, displayName: currentUser?.displayName } })
+        signaling.emit('call:start', { callId: callRecord.data?.id, type, roomId: callRoomId, groupId: id, offer, initiatorInfo: { userId: currentUser?.id, displayName: currentUser?.displayName } })
       } catch (e) { console.warn('call start err', e) }
-      setTimeout(() => {
-        setActiveCall(p => p?.status === 'calling' ? { ...p, status: 'connected', startedAt: Date.now() } : p)
-        const s = Date.now()
-        if (callTimerRef.current) clearInterval(callTimerRef.current)
-        callTimerRef.current = setInterval(() => setCallElapsed(Math.floor((Date.now() - s) / 1000)), 1000)
-      }, 2500)
     } catch (err) {
       console.error(err)
       addToast({ type: 'error', text: 'Gagal panggilan: ' + (err?.message || 'Izin kamera/mic ditolak') })
@@ -796,13 +794,13 @@ const GroupChat = () => {
   }, [activeCall])
 
   useEffect(() => {
-    const onIncoming = async ({ type, roomId, groupId, offer, fromUserId, fromSocket, initiatorInfo }) => {
+    const onIncoming = async ({ callId, type, roomId, groupId, offer, fromUserId, fromSocket, initiatorInfo }) => {
       if (!id || String(groupId) !== String(id) || String(fromUserId) === String(currentUser?.id) || activeCall) return
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' })
         localStreamRef.current = stream
         if (selfVideoRef.current && type === 'video') selfVideoRef.current.srcObject = stream
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] })
+        const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
         pcRef.current = pc
         stream.getTracks().forEach(track => pc.addTrack(track, stream))
         pc.ontrack = (ev) => { if (peerVideoRef.current && ev.streams?.[0]) peerVideoRef.current.srcObject = ev.streams[0] }
@@ -810,9 +808,9 @@ const GroupChat = () => {
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
         const ans = await pc.createAnswer()
         await pc.setLocalDescription(ans)
-        signaling.emit('call:answer', { roomId, answer: ans, toSocket: fromSocket })
+        signaling.emit('call:answer', { roomId, callId, answer: ans, toSocket: fromSocket })
         setCallCamOn(type === 'video'); setCallMicOn(true); setCallElapsed(0)
-        setActiveCall({ type, roomId, groupId, groupName: group?.name || 'Group Call', status: 'connected', startedAt: Date.now(), role: 'receiver', targetUserId: fromUserId, targetDisplayName: initiatorInfo?.displayName || 'Anggota grup' })
+        setActiveCall({ type, roomId, callId, groupId, groupName: group?.name || 'Group Call', status: 'connected', startedAt: Date.now(), role: 'receiver', targetUserId: fromUserId, targetDisplayName: initiatorInfo?.displayName || 'Anggota grup' })
         const s = Date.now()
         callTimerRef.current = setInterval(() => setCallElapsed(Math.floor((Date.now() - s) / 1000)), 1000)
         addToast({ type: 'success', text: 'Panggilan grup diterima' })

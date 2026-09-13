@@ -1,16 +1,63 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const { pool } = require('../models/db');
 const { authenticate } = require('../middleware/auth');
+
+// Contact/search list used by chat and calls. It deliberately returns only
+// public profile fields and never exposes email, phone, or auth data.
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim().replace(/^@+/, '');
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 50) : 50;
+    const like = `%${q.replace(/[%_]/g, '')}%`;
+    const params = [req.userId];
+    let where = 'u.id <> ?';
+    if (q.length >= 2) {
+      where += ' AND (u.username ILIKE ? OR u.display_name ILIKE ?)';
+      params.push(like, like);
+    }
+    params.push(limit);
+    const [rows] = await pool.query(
+      `SELECT u.id, u.username, u.display_name, u.avatar_url, u.created_at
+       FROM users u
+       WHERE ${where}
+       ORDER BY LOWER(COALESCE(u.display_name, u.username)), LOWER(u.username)
+       LIMIT ?`,
+      params
+    );
+    res.json({
+      users: rows.map((u) => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.display_name || u.username,
+        avatarUrl: u.avatar_url || null,
+        createdAt: u.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error('List users error:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // simple search endpoint for users (by username or display name)
 router.get('/search', authenticate, async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
+    const q = String(req.query.q || '').trim().replace(/^@+/, '');
     if (!q || q.length < 2) return res.json({ users: [] });
-    const { pool } = require('../models/db');
-    const like = `%${q.replace(/%/g, '')}%`;
-    const [rows] = await pool.query(`SELECT id, username, display_name, avatar_url FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 30`, [like, like]);
+    const like = `%${q.replace(/[%_]/g, '')}%`;
+    const [rows] = await pool.query(
+      `SELECT id, username, display_name, avatar_url
+       FROM users
+       WHERE id <> ?
+         AND (username ILIKE ? OR display_name ILIKE ?)
+       ORDER BY CASE WHEN LOWER(username) = LOWER(?) THEN 0 ELSE 1 END,
+                LOWER(COALESCE(display_name, username))
+       LIMIT ?`,
+      [req.userId, like, like, q, 30]
+    );
     const users = rows.map(u => ({ id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url }));
     res.json({ users });
   } catch (err) {

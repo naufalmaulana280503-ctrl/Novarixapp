@@ -210,7 +210,7 @@ export const groupsApi = {
   leaveGroup: (id) => api.post(`/groups/${id}/leave`),
   getMembers: (id) => api.get(`/groups/${id}/members`),
   kickMember: (groupId, userId) => api.delete(`/groups/${groupId}/members/${userId}`),
-  changeMemberRole: (groupId, userId, role) => api.put(`/groups/${groupId}/members/${userId}/role`, { role }),
+  changeMemberRole: (groupId, userId, role) => api.put(`/groups/${groupId}/members/${userId}/role`, { newRole: role }),
   generateInviteCode: (id) => api.post(`/groups/${id}/invite`),
   joinByInviteCode: (code) => api.post(`/groups/invite/${code}`),
 }

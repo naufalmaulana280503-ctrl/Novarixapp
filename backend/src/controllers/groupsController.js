@@ -1,4 +1,5 @@
 const { pool } = require('../models/db');
+const crypto = require('crypto');
 
 const createGroup = async (req, res) => {
   try {
@@ -15,9 +16,10 @@ const createGroup = async (req, res) => {
     }
 
     const maxMembers = 3500000;
+    const inviteCode = crypto.randomBytes(6).toString('base64url').toUpperCase();
     const [result] = await pool.query(
-      'INSERT INTO groups (name, description, avatar_url, owner_id, is_private, max_members) VALUES (?, ?, ?, ?, ?, ?)',
-      [name.trim(), description || null, avatarUrl || null, ownerId, isPrivate ? 1 : 0, maxMembers]
+      'INSERT INTO groups (name, description, avatar_url, owner_id, is_private, invite_code, max_members) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name.trim(), description || null, avatarUrl || null, ownerId, isPrivate ? 1 : 0, inviteCode, maxMembers]
     );
 
     const groupId = result.insertId;
@@ -186,7 +188,7 @@ const listUserGroups = async (req, res) => {
         avatarUrl: g.avatar_url,
         ownerId: g.owner_id,
         isPrivate: !!g.is_private,
-        inviteCode: null,
+        inviteCode: g.invite_code,
         maxMembers: g.max_members,
         role: g.role,
         joinedAt: g.joined_at,
@@ -263,7 +265,7 @@ const joinGroup = async (req, res) => {
     try {
       await pool.query('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [groupId, userId, 'member']);
     } catch (err) {
-      if (err.message.includes('UNIQUE constraint')) {
+      if (/unique|duplicate/i.test(err.message)) {
         return res.status(409).json({ message: 'Already a member' });
       }
       throw err;
@@ -335,7 +337,7 @@ const addMember = async (req, res) => {
     const userId = parseInt(req.body.userId, 10);
     const [requesters] = await pool.query('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, req.userId]);
     if (!requesters.length || !['owner', 'admin'].includes(requesters[0].role)) return res.status(403).json({ message: 'Hanya owner/admin yang dapat menambahkan anggota' });
-    const [groups] = await pool.query('SELECT max_members FROM groups WHERE id = ?', [groupId]);
+    const [groups] = await pool.query('SELECT name, max_members FROM groups WHERE id = ?', [groupId]);
     if (!groups.length) return res.status(404).json({ message: 'Group not found' });
     const [count] = await pool.query('SELECT COUNT(*) AS count FROM group_members WHERE group_id = ?', [groupId]);
     if (Number(count[0].count) >= Number(groups[0].max_members)) return res.status(400).json({ message: 'Group is full' });
@@ -347,6 +349,8 @@ const addMember = async (req, res) => {
       if (/unique|duplicate/i.test(err.message)) return res.status(409).json({ message: 'User is already a member' });
       throw err;
     }
+    const { createNotification } = require('../routes/notifications');
+    createNotification(userId, req.userId, 'group_invite', `Kamu ditambahkan ke grup "${groups[0].name || 'grup'}"`, { groupId });
     res.status(201).json({ message: 'Member added successfully', userId });
   } catch (err) {
     console.error('Add member error:', err);
@@ -398,7 +402,7 @@ const changeMemberRole = async (req, res) => {
     const groupId = parseInt(req.params.groupId);
     const requesterId = req.userId;
     const userId = parseInt(req.params.userId);
-    const { newRole } = req.body;
+    const newRole = req.body.newRole || req.body.role;
 
     const validRoles = ['owner', 'admin', 'member'];
     if (!validRoles.includes(newRole)) {
@@ -430,11 +434,15 @@ const generateInviteCode = async (req, res) => {
     if (groups.length === 0) {
       return res.status(404).json({ message: 'Group not found' });
     }
-    if (groups[0].owner_id !== ownerId) {
-      return res.status(403).json({ message: 'Only group owner can generate invite code' });
+    const [requesters] = await pool.query(
+      'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?',
+      [groupId, ownerId]
+    );
+    if (!requesters.length || !['owner', 'admin'].includes(requesters[0].role)) {
+      return res.status(403).json({ message: 'Only group owner or admin can generate invite code' });
     }
 
-    const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const inviteCode = crypto.randomBytes(6).toString('base64url').toUpperCase();
     await pool.query('UPDATE groups SET invite_code = ? WHERE id = ?', [inviteCode, groupId]);
 
     const [rows] = await pool.query('SELECT invite_code FROM groups WHERE id = ?', [groupId]);
@@ -464,7 +472,7 @@ const joinByInviteCode = async (req, res) => {
     try {
       await pool.query('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [group.id, userId, 'member']);
     } catch (err) {
-      if (err.message.includes('UNIQUE constraint')) {
+      if (/unique|duplicate/i.test(err.message)) {
         return res.status(409).json({ message: 'Already a member' });
       }
       throw err;

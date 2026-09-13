@@ -17,22 +17,24 @@ const initiateCall = async (req, res) => {
   try {
     const callerId = req.userId;
     const { receiverId, groupId, type } = req.body;
+    const numericReceiverId = receiverId == null ? null : Number(receiverId);
+    const numericGroupId = groupId == null ? null : Number(groupId);
 
-    if (!receiverId && !groupId) {
+    if (!numericReceiverId && !numericGroupId) {
       return res.status(400).json({ message: 'Either receiverId or groupId is required' });
     }
-    if (receiverId && (!Number.isInteger(Number(receiverId)) || Number(receiverId) === Number(callerId))) {
+    if (numericReceiverId && (!Number.isInteger(numericReceiverId) || numericReceiverId <= 0 || numericReceiverId === Number(callerId))) {
       return res.status(400).json({ message: 'Invalid call recipient' });
     }
-    if (groupId) {
+    if (numericGroupId) {
       const [members] = await pool.query(
         'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
-        [groupId, callerId]
+        [numericGroupId, callerId]
       );
       if (!members.length) return res.status(403).json({ message: 'Not a member of this group' });
     }
-    if (receiverId) {
-      const [users] = await pool.query('SELECT 1 FROM users WHERE id = ?', [receiverId]);
+    if (numericReceiverId) {
+      const [users] = await pool.query('SELECT 1 FROM users WHERE id = ?', [numericReceiverId]);
       if (!users.length) return res.status(404).json({ message: 'Call recipient not found' });
     }
 
@@ -43,7 +45,7 @@ const initiateCall = async (req, res) => {
 
     const [result] = await pool.query(
       'INSERT INTO calls (caller_id, receiver_id, group_id, type, status) VALUES (?, ?, ?, ?, ?)',
-      [callerId, receiverId || (groupId ? callerId : null), groupId || null, type, 'pending']
+      [callerId, numericReceiverId || (numericGroupId ? callerId : null), numericGroupId || null, type, 'pending']
     );
 
     const [rows] = await pool.query('SELECT * FROM calls WHERE id = ?', [result.insertId]);

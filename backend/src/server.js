@@ -176,19 +176,31 @@ initDatabase().then(() => {
       });
 
       // ---------- REALTIME CHAT (DM) ----------
-      socket.on('chat:sendDM', ({ receiverId, message }) => {
-        const targetSocketId = userSockets.get(String(receiverId));
+      socket.on('chat:sendDM', async ({ receiverId, message }) => {
+        const numericReceiverId = Number(receiverId);
+        if (!Number.isInteger(numericReceiverId) || numericReceiverId <= 0 || numericReceiverId === Number(socket.data.userId)) return;
+        if (typeof message !== 'string' || !message.trim() || message.length > 10000) return;
+        const [recipients] = await pool.query('SELECT id FROM users WHERE id = ?', [numericReceiverId]);
+        if (!recipients.length) return;
+        const [blocked] = await pool.query(
+          `SELECT 1 FROM blocked_users
+           WHERE (blocker_id = ? AND blocked_id = ?)
+              OR (blocker_id = ? AND blocked_id = ?)`,
+          [socket.data.userId, numericReceiverId, numericReceiverId, socket.data.userId]
+        );
+        if (blocked.length) return;
+        const targetSocketId = userSockets.get(String(numericReceiverId));
         if (targetSocketId) {
           io.to(targetSocketId).emit('chat:newDM', {
             fromUserId: socket.data.userId,
             fromDisplayName: socket.data.displayName,
-            message,
+            message: message.trim(),
             timestamp: Date.now(),
           });
         }
         // Also send back to sender (for multi-tab consistency)
         if (targetSocketId !== socket.id) {
-          socket.emit('chat:sentDM', { receiverId, message, timestamp: Date.now() });
+          socket.emit('chat:sentDM', { receiverId: numericReceiverId, message: message.trim(), timestamp: Date.now() });
         }
       });
 
@@ -211,17 +223,16 @@ initDatabase().then(() => {
         if (set) set.delete(socket.id);
       });
 
-      socket.on('group:sendMessage', async ({ groupId, message, senderInfo, payload }) => {
+      socket.on('group:sendMessage', async ({ groupId, message, payload }) => {
         if (!groupId) return;
         if (!(await isGroupMember(groupId))) return;
+        if (typeof message !== 'string' || !message.trim() || message.length > 10000) return;
         const gid = String(groupId);
         io.to(`group:${gid}`).emit('group:newMessage', {
           groupId: gid,
           senderId: socket.data.userId,
-          senderInfo: senderInfo || {
-            displayName: socket.data.displayName,
-          },
-          message,
+          senderInfo: { displayName: socket.data.displayName },
+          message: message.trim(),
           payload: payload || null,
           timestamp: Date.now(),
         });
@@ -232,9 +243,11 @@ initDatabase().then(() => {
       socket.on('call:start', async ({ callId, type, roomId, groupId, targetUserId, offer, initiatorInfo }) => {
         if (groupId && !(await isGroupMember(groupId))) return;
         if (callId) {
+          const numericCallId = Number(callId);
+          if (!Number.isInteger(numericCallId) || numericCallId <= 0) return;
           const [calls] = await pool.query(
             'SELECT 1 FROM calls WHERE id = ? AND (caller_id = ? OR receiver_id = ?)',
-            [callId, socket.data.userId, socket.data.userId]
+            [numericCallId, socket.data.userId, socket.data.userId]
           );
           if (!calls.length) return;
         }
@@ -244,7 +257,7 @@ initDatabase().then(() => {
         callRooms.get(room).add(socket.id);
 
         const payload = {
-          callId, type, roomId: room, groupId,
+          callId, type, roomId: room, groupId, targetUserId: targetUserId || null,
           offer,
           fromSocket: socket.id,
           fromUserId: socket.data.userId,
@@ -271,9 +284,16 @@ initDatabase().then(() => {
           const numericCallId = Number(callId || roomId);
           if (!Number.isInteger(numericCallId)) return;
           const [calls] = await pool.query(
-            'SELECT 1 FROM calls WHERE id = ? AND (caller_id = ? OR receiver_id = ?)',
-            [numericCallId, socket.data.userId, socket.data.userId]
-          );
+          `SELECT 1 FROM calls
+           WHERE id = ? AND (
+             caller_id = ? OR receiver_id = ? OR
+             (group_id IS NOT NULL AND EXISTS (
+               SELECT 1 FROM group_members gm
+               WHERE gm.group_id = calls.group_id AND gm.user_id = ?
+             ))
+           )`,
+          [numericCallId, socket.data.userId, socket.data.userId, socket.data.userId]
+        );
           if (!calls.length) return;
         }
         socket.join(String(roomId));

@@ -239,6 +239,26 @@ const initializeSchema = async () => {
 
   // 3. Ensure stories, story_views, time_capsules, anon_confessions tables exist
   const extraTables = [
+    // These objects were added after the first production database was
+    // provisioned. Keep them in the idempotent startup migration so an older
+    // database cannot make the feed fail at query time.
+    `CREATE TABLE IF NOT EXISTS post_reposts (
+      id BIGSERIAL PRIMARY KEY,
+      original_post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      repost_by_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (original_post_id, repost_by_user_id)
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_post_reposts_original ON post_reposts(original_post_id)',
+    'CREATE INDEX IF NOT EXISTS idx_post_reposts_user ON post_reposts(repost_by_user_id)',
+    `CREATE TABLE IF NOT EXISTS bot_checks (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      is_flagged_bot BOOLEAN DEFAULT FALSE,
+      flag_reason TEXT,
+      checked_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_bot_checks_user ON bot_checks(user_id)',
     `CREATE TABLE IF NOT EXISTS stories (
       id BIGSERIAL PRIMARY KEY,
       user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

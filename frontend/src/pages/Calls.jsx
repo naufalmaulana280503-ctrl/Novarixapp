@@ -4,44 +4,13 @@ import { api } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import signaling from '../services/signalingClient'
+import { ICE_SERVERS } from '../services/webrtc'
 
 import {
   Phone, Video, Monitor, ArrowLeft, PhoneOff, Mic, MicOff, VideoOff,
-  CircleDot, Users, PhoneIncoming, PhoneMissed, PhoneOutgoing,
+  Users, PhoneIncoming, PhoneMissed, PhoneOutgoing,
   MessageCircle, Star, Search, Plus, ChevronRight, UserCircle, Bot, ShieldCheck,
 } from 'lucide-react'
-
-const DUMMY_CONTACTS = [
-  { id: 'u_2', displayName: 'Dewi Lestari', avatarColor: 'from-cyan-400 to-blue-600', online: true, lastSeen: 'online' },
-  { id: 'u_3', displayName: 'Budi Pratama', avatarColor: 'from-cyan-400 to-blue-600', online: true, lastSeen: 'online' },
-  { id: 'u_4', displayName: 'Rizky Maulana', avatarColor: 'from-amber-400 to-orange-600', online: false, lastSeen: '10 menit lalu' },
-  { id: 'u_5', displayName: 'Sari Wulandari', avatarColor: 'from-emerald-400 to-green-600', online: true, lastSeen: 'online' },
-  { id: 'u_6', displayName: 'Andre Wijaya', avatarColor: 'from-emerald-400 to-teal-600', online: false, lastSeen: '2 jam lalu' },
-  { id: 'u_7', displayName: 'Christian Lucas', avatarColor: 'from-cyan-400 to-teal-600', online: true, lastSeen: 'online' },
-]
-
-const DUMMY_HISTORY = [
-  {
-    id: 'h1', type: 'voice', direction: 'incoming', missed: false,
-    withUserId: 'u_2', withName: 'Dewi Lestari', withColor: 'from-cyan-400 to-blue-600',
-    startedAt: Date.now() - 30 * 60 * 1000, durationSec: 820,
-  },
-  {
-    id: 'h2', type: 'video', direction: 'outgoing', missed: false,
-    withUserId: 'u_3', withName: 'Budi Pratama', withColor: 'from-cyan-400 to-blue-600',
-    startedAt: Date.now() - 4 * 3600 * 1000, durationSec: 1540,
-  },
-  {
-    id: 'h3', type: 'voice', direction: 'incoming', missed: true,
-    withUserId: 'u_4', withName: 'Rizky Maulana', withColor: 'from-amber-400 to-orange-600',
-    startedAt: Date.now() - 6 * 3600 * 1000, durationSec: 0,
-  },
-  {
-    id: 'h4', type: 'screen', direction: 'outgoing', missed: false,
-    withUserId: 'u_7', withName: 'Christian Lucas', withColor: 'from-cyan-400 to-teal-600',
-    startedAt: Date.now() - 26 * 3600 * 1000, durationSec: 2400,
-  },
-]
 
 const Avatar = ({ name, color, size = 40, online = false, ring = false }) => {
   const initial = (name || '?').charAt(0).toUpperCase()
@@ -80,10 +49,9 @@ const fmtDuration = (sec) => {
 
 const Calls = () => {
   const [activeCall, setActiveCall] = useState(null) // {type, roomId, targetUserId, targetName, targetColor, status, micOn, camOn, role, screen}
-  const [callHistory, setCallHistory] = useState(DUMMY_HISTORY)
-  const [contacts, setContacts] = useState(DUMMY_CONTACTS)
+  const [callHistory, setCallHistory] = useState([])
+  const [contacts, setContacts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [isRecording, setIsRecording] = useState(false)
   const [callElapsed, setCallElapsed] = useState(0)
   const [tab, setTab] = useState('history') // history | contacts
   const [query, setQuery] = useState('')
@@ -128,7 +96,7 @@ const Calls = () => {
               'from-cyan-400 to-blue-600',
             ][i % 6],
             online: !!u.online,
-            lastSeen: u.lastSeen ? (u.online ? 'online' : new Date(u.lastSeen).toLocaleTimeString('id-ID')) : (i % 2 === 0 ? 'online' : '30 menit lalu'),
+            lastSeen: u.lastSeen ? (u.online ? 'online' : new Date(u.lastSeen).toLocaleTimeString('id-ID')) : 'offline',
           })))
         }
       }).catch(() => {})
@@ -150,13 +118,15 @@ const Calls = () => {
         setCallHistory(arr.map((c, i) => ({
           id: c.id || String(i),
           type: c.type || 'voice',
-          direction: c.initiatorId && String(c.initiatorId) === String(currentUser?.id) ? 'outgoing' : 'incoming',
-          missed: !!c.missed,
-          withUserId: c.initiatorId || c.receiverId || 'u_' + i,
-          withName: c.targetDisplayName || c.peerName || `Panggilan ${i + 1}`,
+          direction: String(c.callerId) === String(currentUser?.id) ? 'outgoing' : 'incoming',
+          missed: ['missed', 'rejected'].includes(c.status),
+          withUserId: String(c.callerId) === String(currentUser?.id) ? c.receiverId : c.callerId,
+          withName: String(c.callerId) === String(currentUser?.id)
+            ? (c.receiverUsername || `User ${c.receiverId}`)
+            : (c.callerUsername || `User ${c.callerId}`),
           withColor: ['from-cyan-400 to-blue-600', 'from-cyan-400 to-blue-600', 'from-amber-400 to-orange-600', 'from-emerald-400 to-teal-600'][i % 4],
           startedAt: c.startedAt || c.createdAt || Date.now(),
-          durationSec: c.durationSec || c.duration || 0,
+          durationSec: c.durationSeconds || 0,
         })))
       }
     } catch (err) {
@@ -176,16 +146,13 @@ const Calls = () => {
       setTimeout(async () => {
         try {
           const isScreen = type === 'screen'
-          const constraints = { audio: true, video: type === 'video' || isScreen ? false : false }
+          const constraints = { audio: true, video: type === 'video' || isScreen }
           const stream = await navigator.mediaDevices.getUserMedia(constraints)
           localStreamRef.current = stream
           if (selfVideoRef.current && type === 'video') selfVideoRef.current.srcObject = stream
 
           const pc = new RTCPeerConnection({
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-            ]
+            iceServers: ICE_SERVERS
           })
           pcRef.current = pc
           stream.getTracks().forEach(track => pc.addTrack(track, stream))
@@ -272,10 +239,7 @@ const Calls = () => {
       if (selfVideoRef.current && (isVideo || isScreen)) selfVideoRef.current.srcObject = stream
 
       const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ]
+        iceServers: ICE_SERVERS
       })
       pcRef.current = pc
       stream.getTracks().forEach(track => pc.addTrack(track, stream))
@@ -322,19 +286,8 @@ const Calls = () => {
         })
       } catch (e) { console.warn('call:start err', e) }
 
-      // Simulate connected after 3s if no answer
-      const connectTimeout = setTimeout(() => {
-        setActiveCall(prev => prev?.status === 'calling' ? { ...prev, status: 'connected', startedAt: Date.now() } : prev)
-        const startTs = Date.now()
-        if (callTimerRef.current) clearInterval(callTimerRef.current)
-        callTimerRef.current = setInterval(() => {
-          setCallElapsed(Math.floor((Date.now() - startTs) / 1000))
-        }, 1000)
-      }, 3000)
-
       const onAnswered = ({ roomId, answer }) => {
         if (roomId !== callRoomId) return
-        clearTimeout(connectTimeout)
         if (pc && answer && !pc.currentRemoteDescription) {
           try {
             pc.setRemoteDescription(new RTCSessionDescription(answer))
@@ -406,7 +359,6 @@ const Calls = () => {
     }
     setActiveCall(null)
     setCallElapsed(0)
-    setIsRecording(false)
   }
   const endCall = () => endCallInternal(false)
 
@@ -424,14 +376,6 @@ const Calls = () => {
     const stream = activeCall.screen ? screenStreamRef.current : localStreamRef.current
     if (stream) stream.getVideoTracks().forEach(t => { t.enabled = next })
     try { signaling.emit('call:toggleCam', { roomId: activeCall.roomId, off: !next }) } catch {}
-  }
-
-  const toggleRecording = () => {
-    setIsRecording(prev => {
-      const next = !prev
-      addToast({ type: next ? 'success' : 'info', text: next ? 'Rekaman panggilan dimulai' : 'Rekaman panggilan dihentikan' })
-      return next
-    })
   }
 
   const filteredHistory = callHistory.filter(x => {
@@ -484,12 +428,6 @@ const Calls = () => {
                   <span className={`w-1.5 h-1.5 rounded-full ${activeCall.status === 'connected' ? 'bg-emerald-400 animate-pulse' : 'bg-sky-400 animate-ping'}`} />
                   {activeCall.status === 'calling' ? 'Memanggil' : 'Terhubung'}
                 </span>
-                {isRecording && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">
-                    <CircleDot className="w-3 h-3 text-cyan-400 animate-pulse fill-cyan-400" />
-                    Recording {fmtDuration(callElapsed)}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -563,18 +501,6 @@ const Calls = () => {
                     {activeCall.camOn ? <Video className="w-5 h-5 sm:w-6 sm:h-6" /> : <VideoOff className="w-5 h-5 sm:w-6 sm:h-6" />}
                   </button>
                 )}
-
-                <button
-                  onClick={toggleRecording}
-                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center transition border ${
-                    isRecording
-                      ? 'bg-cyan-500/90 border-cyan-500/60 text-white shadow-lg shadow-cyan-500/30'
-                      : 'bg-neutral-800/60 border-white/10 text-white hover:bg-neutral-800'
-                  }`}
-                  title={isRecording ? 'Hentikan rekaman' : 'Rekam panggilan'}
-                >
-                  <CircleDot className={`w-5 h-5 sm:w-6 sm:h-6 ${isRecording ? 'fill-white animate-pulse' : ''}`} />
-                </button>
 
                 <button
                   onClick={endCall}

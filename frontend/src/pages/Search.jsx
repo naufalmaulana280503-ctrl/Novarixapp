@@ -1,24 +1,8 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search as SearchIcon, UserRound, Heart, MessageCircle, TrendingUp, X } from 'lucide-react'
+import { Search as SearchIcon, UserRound, X } from 'lucide-react'
 import { api } from '../services/api'
-
-const TRENDING_TAGS = [
-  { tag: '#gaming', posts: '2.4M' },
-  { tag: '#musik', posts: '1.8M' },
-  { tag: '#kuliner', posts: '956K' },
-  { tag: '#beauty', posts: '1.2M' },
-  { tag: '#fashion', posts: '878K' },
-  { tag: '#travel', posts: '654K' },
-]
-
-const EXPLORE_ITEMS = Array.from({ length: 12 }, (_, i) => ({
-  id: i + 1,
-  type: i % 5 === 0 ? 'video' : 'image',
-  likes: Math.floor(Math.random() * 50000) + 1000,
-  comments: Math.floor(Math.random() * 2000) + 100,
-  color: ['#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed'][i % 5],
-}))
+import { API_ORIGIN } from '../services/backendUrl'
 
 const Search = () => {
   const [query, setQuery] = useState('')
@@ -74,12 +58,12 @@ const Search = () => {
               {results.map((user) => (
                 <Link key={user.id} to={`/profile/${user.username}`} style={S.resultItem}>
                   <div style={S.avatar}>
-                    {user.avatar_url
-                      ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {user.avatarUrl
+                      ? <img src={user.avatarUrl.startsWith('/') ? `${API_ORIGIN}${user.avatarUrl}` : user.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <div style={S.avatarPH}><UserRound size={20} /></div>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{user.display_name || user.username}</span>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{user.displayName || user.username}</span>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>@{user.username}</span>
                   </div>
                 </Link>
@@ -94,33 +78,8 @@ const Search = () => {
         </div>
       ) : (
         <div style={{ padding: 16 }}>
-          <div style={{ marginBottom: 20 }}>
-            <h3 style={S.sectionTitle}><TrendingUp size={16} style={{ color: '#0891b2' }} /> Trending Sekarang</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {TRENDING_TAGS.map((item) => (
-                <button key={item.tag} style={S.tagItem}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{item.tag}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.posts} postingan</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-            {EXPLORE_ITEMS.map((item) => (
-              <div key={item.id} className={`explore-grid-item${item.id % 7 === 0 ? ' explore-wide' : ''}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: 4, overflow: 'hidden', cursor: 'pointer' }}>
-                <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${item.color}22, ${item.color}44)`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                  {item.type === 'video' && (
-                    <div style={{ position: 'absolute', top: 8, right: 8, color: '#fff', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </div>
-                  )}
-                  <div className="explore-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', opacity: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, transition: 'opacity 0.2s ease' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#fff' }}><Heart size={14} /> {(item.likes / 1000).toFixed(1)}K</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#fff' }}><MessageCircle size={14} /> {(item.comments / 1000).toFixed(1)}K</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Cari username atau nama untuk menemukan teman.</p>
           </div>
         </div>
       )}
@@ -140,8 +99,6 @@ const S = {
   resultItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', borderRadius: 12, textDecoration: 'none', color: 'inherit' },
   avatar: { width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'var(--bg-tertiary)' },
   avatarPH: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' },
-  sectionTitle: { fontSize: 15, fontWeight: 700, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' },
-  tagItem: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: 'none', cursor: 'pointer', color: 'inherit' },
 }
 
 export default Search
