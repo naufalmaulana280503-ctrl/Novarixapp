@@ -52,16 +52,17 @@ const Avatar = ({ name, color, size = 40, online = false }) => {
   )
 }
 
+const fmtDateLabel = (ts) => {
+  const date = new Date(ts)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (date.toDateString() === today.toDateString()) return 'Hari ini'
+  if (date.toDateString() === yesterday.toDateString()) return 'Kemarin'
+  return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 const fmtTime = (ts) => {
-  const fmtDateLabel = (ts) => {
-    const date = new Date(ts)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(today.getDate() - 1)
-    if (date.toDateString() === today.toDateString()) return 'Hari ini'
-    if (date.toDateString() === yesterday.toDateString()) return 'Kemarin'
-    return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  }
   if (!ts) return ''
   const d = new Date(ts)
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
@@ -71,6 +72,39 @@ const resolveMedia = (url) => {
   if (!url) return ''
   if (/^https?:\/\//i.test(url)) return url
   return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+const VoiceMessage = ({ message, onPlayVoice }) => {
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef(null)
+  const togglePlay = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(resolveMedia(message.voiceUrl))
+      audioRef.current.addEventListener('ended', () => setPlaying(false))
+    }
+    if (playing) {
+      audioRef.current.pause()
+      setPlaying(false)
+    } else {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => setPlaying(false))
+      setPlaying(true)
+      onPlayVoice?.(message.id)
+    }
+  }
+  return (
+    <div className="flex items-center gap-3 min-w-[220px]">
+      <button onClick={togglePlay} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition shrink-0">
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+      <div className="flex-1">
+        <div className="h-1.5 rounded-full bg-white/20 overflow-hidden mb-1.5">
+          <div className="h-full w-1/3 bg-white rounded-full" />
+        </div>
+        <p className="text-[11px] opacity-80 font-mono">{formatDuration(message.voiceDuration || 0)}</p>
+      </div>
+    </div>
+  )
 }
 
 const MessageBubbleContent = ({ m, onPlayVoice }) => {
@@ -109,40 +143,7 @@ const MessageBubbleContent = ({ m, onPlayVoice }) => {
     )
   }
   if (m.voiceUrl) {
-    const dur = m.voiceDuration || 0
-    const [playing, setPlaying] = useState(false)
-    const audioRef = useRef(null)
-    const togglePlay = () => {
-      if (!audioRef.current) {
-        audioRef.current = new Audio(resolveMedia(m.voiceUrl))
-        audioRef.current.addEventListener('ended', () => setPlaying(false))
-      }
-      if (playing) {
-        audioRef.current.pause()
-        setPlaying(false)
-      } else {
-        audioRef.current.currentTime = 0
-        audioRef.current.play()
-        setPlaying(true)
-        onPlayVoice && onPlayVoice(m.id)
-      }
-    }
-    return (
-      <div className="flex items-center gap-3 min-w-[220px]">
-        <button
-          onClick={togglePlay}
-          className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition shrink-0"
-        >
-          {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-        </button>
-        <div className="flex-1">
-          <div className="h-1.5 rounded-full bg-white/20 overflow-hidden mb-1.5">
-            <div className="h-full w-1/3 bg-white rounded-full" />
-          </div>
-          <p className="text-[11px] opacity-80 font-mono">{formatDuration(dur)}</p>
-        </div>
-      </div>
-    )
+    return <VoiceMessage message={m} onPlayVoice={onPlayVoice} />
   }
   if (m.locationName && m.latitude != null && m.longitude != null) {
     const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(`${m.latitude},${m.longitude}`)}`
@@ -224,14 +225,6 @@ const Chat = () => {
   useEffect(() => {
     fetchConversations()
     fetchGroupsList()
-    if (currentUser?.id) {
-      try {
-        signaling.emit('user:join', {
-          userId: currentUser.id,
-          displayName: currentUser.displayName || currentUser.username,
-        })
-      } catch (e) { console.warn('socket user:join error', e) }
-    }
     return () => {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(t => t.stop())
@@ -254,13 +247,22 @@ const Chat = () => {
         const n = new Set(prev); n.delete(String(uid)); return n
       })
     }
+    const onPresenceSync = ({ userIds = [] }) => {
+      setOnlineUsers(new Set(userIds.map((uid) => String(uid))))
+    }
     signaling.on('presence:online', onOnline)
     signaling.on('presence:offline', onOffline)
+    signaling.on('presence:sync', onPresenceSync)
+    // Register listeners before connecting. The Socket.IO singleton can already
+    // be connected when navigating back to /chat, so joining before this effect
+    // would otherwise lose the one-shot presence:sync event.
+    signaling.connect()
     return () => {
       signaling.off('presence:online', onOnline)
       signaling.off('presence:offline', onOffline)
+      signaling.off('presence:sync', onPresenceSync)
     }
-  }, [])
+  }, [currentUser?.id])
 
   // ============ TYPING INDICATORS ============
   useEffect(() => {

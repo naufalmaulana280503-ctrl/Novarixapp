@@ -7,10 +7,12 @@ const SOCKET_URL = resolveSocketUrl(
   import.meta.env.VITE_SIGNALING_URL || import.meta.env.VITE_API_URL || import.meta.env.VITE_API_ORIGIN
 )
 const socket = io(SOCKET_URL, {
-  transports: ['websocket'],
+  // WebSocket-only connections fail behind some reverse proxies. Socket.IO's
+  // polling fallback still upgrades to WebSocket when the transport is usable.
+  transports: ['polling', 'websocket'],
   autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: 10,
 })
 
 const ensureConnected = () => {
@@ -21,9 +23,24 @@ const ensureConnected = () => {
   return true
 }
 
+const registerCurrentUser = () => {
+  const raw = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+  if (!raw) return
+  try {
+    const user = JSON.parse(raw)
+    if (user?.id) socket.emit('user:join', { userId: user.id, displayName: user.displayName || user.username })
+  } catch {}
+}
+
+socket.on('connect', registerCurrentUser)
+
 export default {
   socket,
-  connect: ensureConnected,
+  connect: () => {
+    const connected = ensureConnected()
+    if (connected && socket.connected) registerCurrentUser()
+    return connected
+  },
   on: (ev, cb) => socket.on(ev, cb),
   off: (ev, cb) => socket.off(ev, cb),
   emit: (ev, data, cb) => {

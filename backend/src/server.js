@@ -170,9 +170,13 @@ initDatabase().then(() => {
       socket.on('user:join', ({ userId, displayName }) => {
         const authenticatedUserId = socket.data.userId;
         if (!authenticatedUserId) return;
-        userSockets.set(authenticatedUserId, socket.id);
+        const existingSockets = userSockets.get(authenticatedUserId) || new Set();
+        const wasOffline = existingSockets.size === 0;
+        existingSockets.add(socket.id);
+        userSockets.set(authenticatedUserId, existingSockets);
         console.log(`[SOCKET] User ${authenticatedUserId} (${socket.data.displayName}) joined as socket ${socket.id}`);
-        socket.broadcast.emit('presence:online', { userId: authenticatedUserId, socketId: socket.id });
+        socket.emit('presence:sync', { userIds: Array.from(userSockets.keys()) });
+        if (wasOffline) socket.broadcast.emit('presence:online', { userId: authenticatedUserId, socketId: socket.id });
       });
 
       // ---------- REALTIME CHAT (DM) ----------
@@ -189,8 +193,8 @@ initDatabase().then(() => {
           [socket.data.userId, numericReceiverId, numericReceiverId, socket.data.userId]
         );
         if (blocked.length) return;
-        const targetSocketId = userSockets.get(String(numericReceiverId));
-        if (targetSocketId) {
+        const targetSocketIds = userSockets.get(String(numericReceiverId)) || new Set();
+        for (const targetSocketId of targetSocketIds) {
           io.to(targetSocketId).emit('chat:newDM', {
             fromUserId: socket.data.userId,
             fromDisplayName: socket.data.displayName,
@@ -199,7 +203,7 @@ initDatabase().then(() => {
           });
         }
         // Also send back to sender (for multi-tab consistency)
-        if (targetSocketId !== socket.id) {
+        if (!targetSocketIds.has(socket.id)) {
           socket.emit('chat:sentDM', { receiverId: numericReceiverId, message: message.trim(), timestamp: Date.now() });
         }
       });
@@ -267,8 +271,8 @@ initDatabase().then(() => {
 
         // Send to specific user (1-to-1 call)
         if (targetUserId) {
-          const sid = userSockets.get(String(targetUserId));
-          if (sid) io.to(sid).emit('call:incoming', payload);
+          const sockets = userSockets.get(String(targetUserId)) || new Set();
+          for (const sid of sockets) io.to(sid).emit('call:incoming', payload);
         }
         // Broadcast to entire group
         if (groupId) {
@@ -357,8 +361,8 @@ initDatabase().then(() => {
           fromDisplayName: socket.data.displayName,
         };
         if (toUserId) {
-          const sid = userSockets.get(String(toUserId));
-          if (sid) io.to(sid).emit('chat:typing', payload);
+          const sockets = userSockets.get(String(toUserId)) || new Set();
+          for (const sid of sockets) io.to(sid).emit('chat:typing', payload);
         } else if (toGroupId) {
           socket.to(`group:${String(toGroupId)}`).emit('chat:typing', payload);
         }
@@ -369,8 +373,14 @@ initDatabase().then(() => {
         console.log('[SIGNALING] Client disconnected:', socket.id);
         const uid = socket.data.userId;
         if (uid) {
-          userSockets.delete(String(uid));
-          socket.broadcast.emit('presence:offline', { userId: uid, socketId: socket.id });
+          const sockets = userSockets.get(String(uid));
+          if (sockets) {
+            sockets.delete(socket.id);
+            if (sockets.size === 0) {
+              userSockets.delete(String(uid));
+              socket.broadcast.emit('presence:offline', { userId: uid, socketId: socket.id });
+            }
+          }
         }
         // Clean up group rooms
         for (const [gid, set] of groupSockets.entries()) {

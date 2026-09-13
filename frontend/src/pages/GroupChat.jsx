@@ -203,6 +203,42 @@ const PollBubble = ({ pollId, mine }) => {
   )
 }
 
+const VoiceMessage = ({ message, onPlayVoice }) => {
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef(null)
+  const toggle = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(resolveMedia(message.voiceUrl))
+      audioRef.current.addEventListener('ended', () => setPlaying(false))
+    }
+    if (playing) {
+      audioRef.current.pause()
+      setPlaying(false)
+    } else {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => setPlaying(false))
+      setPlaying(true)
+      onPlayVoice?.(message.id)
+    }
+  }
+  return (
+    <div className="flex items-center gap-3 min-w-[220px]">
+      <button onClick={toggle} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition shrink-0">
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+      <div className="flex-1">
+        <div className="h-1.5 rounded-full bg-white/20 overflow-hidden mb-1.5">
+          <div className="h-full w-1/3 bg-white rounded-full" />
+        </div>
+        <p className="text-[11px] opacity-80 font-mono">{formatDuration(message.voiceDuration || 0)}</p>
+      </div>
+      <button onClick={() => downloadMedia(message.voiceUrl, `voice-note-${message.id || 'novarix'}.webm`)} className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition shrink-0" title="Unduh voice">
+        <Download className="w-4 h-4 opacity-80" />
+      </button>
+    </div>
+  )
+}
+
 const MessageBubbleContent = ({ m, onPlayVoice }) => {
   if (m.pollId) return <PollBubble pollId={m.pollId} mine={false} />
   if (m.documentUrl) {
@@ -231,39 +267,7 @@ const MessageBubbleContent = ({ m, onPlayVoice }) => {
   }
   if (m.videoUrl) return <video src={resolveMedia(m.videoUrl)} controls className="rounded-xl max-w-[300px] max-h-[320px]" />
   if (m.voiceUrl) {
-    const dur = m.voiceDuration || 0
-    const [playing, setPlaying] = useState(false)
-    const audioRef = useRef(null)
-    const toggle = () => {
-      if (!audioRef.current) {
-        audioRef.current = new Audio(resolveMedia(m.voiceUrl))
-        audioRef.current.addEventListener('ended', () => setPlaying(false))
-      }
-      if (playing) { audioRef.current.pause(); setPlaying(false) }
-      else {
-        audioRef.current.currentTime = 0
-        audioRef.current.play()
-        setPlaying(true)
-        onPlayVoice && onPlayVoice(m.id)
-      }
-    }
-    return (
-      <div className="flex items-center gap-3 min-w-[220px]">
-        <button onClick={toggle} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition shrink-0">
-          {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-        </button>
-        <div className="flex-1">
-          <div className="h-1.5 rounded-full bg-white/20 overflow-hidden mb-1.5">
-            <div className="h-full w-1/3 bg-white rounded-full" />
-          </div>
-          <p className="text-[11px] opacity-80 font-mono">{formatDuration(dur)}</p>
-        </div>
-        <button onClick={() => downloadMedia(m.voiceUrl, `voice-note-${m.id || 'novarix'}.webm`)}
-          className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition shrink-0" title="Unduh voice">
-          <Download className="w-4 h-4 opacity-80" />
-        </button>
-      </div>
-    )
+    return <VoiceMessage message={m} onPlayVoice={onPlayVoice} />
   }
   if (m.locationName && m.latitude != null && m.longitude != null) {
     const u = `https://www.google.com/maps?q=${encodeURIComponent(`${m.latitude},${m.longitude}`)}`
@@ -370,9 +374,15 @@ const GroupChat = () => {
   useEffect(() => {
     const onO = ({ userId: uid }) => setOnlineUsers(prev => new Set([...prev, String(uid)]))
     const onOf = ({ userId: uid }) => setOnlineUsers(prev => { const n = new Set(prev); n.delete(String(uid)); return n })
+    const onSync = ({ userIds = [] }) => setOnlineUsers(new Set(userIds.map((uid) => String(uid))))
     signaling.on('presence:online', onO)
     signaling.on('presence:offline', onOf)
-    return () => { signaling.off('presence:online', onO); signaling.off('presence:offline', onOf) }
+    signaling.on('presence:sync', onSync)
+    return () => {
+      signaling.off('presence:online', onO)
+      signaling.off('presence:offline', onOf)
+      signaling.off('presence:sync', onSync)
+    }
   }, [])
 
   useEffect(() => {
