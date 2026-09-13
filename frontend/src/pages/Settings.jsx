@@ -94,8 +94,8 @@ export default function Settings() {
       <div style={styles.container}>
         {/* Header */}
         <div style={styles.header}>
-          <h1 style={styles.title}>Pengaturan</h1>
-          <p style={styles.subtitle}>Kelola akun dan preferensi kamu</p>
+          <h1 style={styles.title}>{t('settings')}</h1>
+          <p style={styles.subtitle}>{t('managePreferences')}</p>
         </div>
 
         {/* Account Section */}
@@ -286,13 +286,13 @@ export default function Settings() {
 
         {/* Language Section */}
         <div className="settings-section">
-          <div className="settings-section-title">Bahasa</div>
+          <div className="settings-section-title">{t('language')}</div>
           <div className="settings-row">
             <div className="settings-row-left">
               <div className="settings-row-icon"><Globe size={20} /></div>
               <div className="settings-row-text">
-                <h4>Bahasa Aplikasi</h4>
-                <p>Pilih bahasa tampilan</p>
+                <h4>{t('appLanguage')}</h4>
+                <p>{t('chooseLanguage')}</p>
               </div>
             </div>
             <select

@@ -4,6 +4,7 @@ import StoriesRow from '../components/StoriesRow'
 import { api } from '../services/api'
 import AnonConfess from './AnonConfess'
 import PostComposer from '../components/PostComposer'
+import { useLanguage } from '../context/LanguageContext'
 
 const Feed = () => {
   const [posts, setPosts] = useState([])
@@ -12,6 +13,7 @@ const Feed = () => {
   const [isCompact, setIsCompact] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false)
   const [scope, setScope] = useState('all')
   const [zone, setZone] = useState('showcase')
+  const { t } = useLanguage()
 
   const fetchFeed = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true)
@@ -39,7 +41,7 @@ const Feed = () => {
   }, [fetchFeed, zone])
 
   if (zone === 'safe') {
-    return <div style={{ ...styles.container, flexDirection: 'column' }}><div style={{ ...styles.feedContainer, maxWidth: '100%', border: 'none', paddingTop: 16 }}><div style={styles.zoneTabs} role="tablist" aria-label="Zona feed"><button type="button" role="tab" aria-selected={false} onClick={() => setZone('showcase')} style={styles.tab}>Zona Pamer</button><button type="button" role="tab" aria-selected={true} style={{ ...styles.tab, ...styles.activeTab }}>Safe Space</button></div><AnonConfess embedded /></div></div>
+    return <div style={{ ...styles.container, flexDirection: 'column' }}><div style={{ ...styles.feedContainer, maxWidth: '100%', border: 'none', paddingTop: 16 }}><div style={styles.zoneTabs} role="tablist" aria-label="Zona feed">    <button type="button" role="tab" aria-selected={false} onClick={() => setZone('showcase')} style={styles.tab}>{t('feed')}</button><button type="button" role="tab" aria-selected={true} style={{ ...styles.tab, ...styles.activeTab }}>Safe Space</button></div><AnonConfess embedded /></div></div>
   }
 
   if (loading) {
@@ -68,7 +70,7 @@ const Feed = () => {
           {error && (
             <div style={styles.errorBox} role="alert">
               <p style={styles.errorText}>{error}</p>
-              <button type="button" onClick={() => fetchFeed(true)} style={styles.retryButton}>Coba lagi</button>
+              <button type="button" onClick={() => fetchFeed(true)} style={styles.retryButton}>{t('retry')}</button>
             </div>
           )}
           {!error && posts.map((post) => (
@@ -76,7 +78,7 @@ const Feed = () => {
           ))}
           {!error && posts.length === 0 && (
             <div style={styles.empty}>
-              <p style={styles.emptyText}>No posts yet. Be the first to upload!</p>
+              <p style={styles.emptyText}>{t('noPosts')}</p>
             </div>
           )}
         </div>
