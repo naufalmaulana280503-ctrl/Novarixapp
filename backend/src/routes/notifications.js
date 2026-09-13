@@ -84,5 +84,28 @@ const createNotification = async (userId, actorId, type, message, extra = {}) =>
   }
 };
 
+const notifyFollowers = async (actorId, type, message, extra = {}) => {
+  try {
+    await pool.query(
+      `INSERT INTO notifications (user_id, actor_id, type, message, post_id, comment_id, group_id)
+       SELECT f.follower_id, $1, $2, $3, $4, $5, $6
+       FROM follows f
+       WHERE f.following_id = $1
+         AND f.follower_id <> $1`,
+      [
+        actorId,
+        type,
+        message,
+        extra.postId || null,
+        extra.commentId || null,
+        extra.groupId || null,
+      ]
+    );
+  } catch (err) {
+    console.warn('[Notification] Failed to notify followers:', err.message);
+  }
+};
+
 module.exports = router;
 module.exports.createNotification = createNotification;
+module.exports.notifyFollowers = notifyFollowers;

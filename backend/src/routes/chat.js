@@ -8,6 +8,10 @@ const {
   toPublicChatUrl,
   detectType,
   handleMulterErrors: chatMulterErrors,
+  MAX_DOC_BYTES,
+  MAX_IMAGE_BYTES,
+  MAX_VIDEO_BYTES,
+  MAX_VOICE_BYTES,
 } = require('../middleware/chatUpload');
 
 // Compatibility endpoints used by frontend
@@ -29,6 +33,16 @@ router.post(
       }
       const userId = req.userId;
       const type = detectType(req.file.mimetype);
+      const maxBytes = {
+        document: MAX_DOC_BYTES,
+        image: MAX_IMAGE_BYTES,
+        video: MAX_VIDEO_BYTES,
+        voice: MAX_VOICE_BYTES,
+      }[type];
+      if (req.file.size > maxBytes) {
+        await require('fs/promises').unlink(req.file.path).catch(() => {});
+        return res.status(400).json({ message: `Ukuran ${type} melebihi batas yang diizinkan` });
+      }
       const publicUrl = toPublicChatUrl(userId, req.file.filename, type);
       res.status(200).json({
         url: publicUrl,

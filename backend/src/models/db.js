@@ -192,6 +192,9 @@ const initializeSchema = async () => {
 
   // 2. Run ALTER TABLE migrations for new columns
   const alterStatements = [
+    'ALTER TABLE posts ALTER COLUMN media_url DROP NOT NULL',
+    'ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_media_type_check',
+    "ALTER TABLE posts ADD CONSTRAINT posts_media_type_check CHECK (media_type IN ('image', 'video', 'text'))",
     'ALTER TABLE messages ADD COLUMN IF NOT EXISTS video_url TEXT',
     'ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ',
     'ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search as SearchIcon, UserRound, X } from 'lucide-react'
 import { api } from '../services/api'
@@ -9,9 +9,7 @@ const Search = () => {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const handleSearch = async (event) => {
-    event.preventDefault()
-    const value = query.trim()
+  const searchUsers = async (value) => {
     if (value.length < 2) { setResults([]); return }
     setLoading(true)
     try {
@@ -22,6 +20,22 @@ const Search = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    const value = query.trim()
+    if (value.length < 2) {
+      setResults([])
+      setLoading(false)
+      return undefined
+    }
+    const timer = setTimeout(() => searchUsers(value), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const handleSearch = (event) => {
+    event.preventDefault()
+    searchUsers(query.trim())
   }
 
   const isSearching = query.trim().length >= 2

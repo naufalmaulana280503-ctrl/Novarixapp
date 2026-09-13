@@ -1,7 +1,7 @@
 const fs = require('fs');
 const { pool } = require('../models/db');
 const { computeVerifiedBadge, formatNumber } = require('./authController');
-const { createNotification } = require('../routes/notifications');
+const { createNotification, notifyFollowers } = require('../routes/notifications');
 const {
   toPublicMediaUrl,
   resolveStoredFilePath,
@@ -132,7 +132,7 @@ const createPost = async (req, res) => {
     }
 
     const hasVideo = files.some((file) => file.mimetype.startsWith('video/'));
-    const mediaType = hasVideo ? 'video' : 'image';
+    const mediaType = files.length ? (hasVideo ? 'video' : 'image') : 'text';
     let duration = null;
 
     if (hasVideo) {
@@ -217,6 +217,10 @@ const createPost = async (req, res) => {
       await pool.query('UPDATE users SET posts_count = posts_count + 1 WHERE id = ?', [userId]);
     } catch (countErr) {
       console.warn('[createPost] Gagal update posts_count (non-fatal):', countErr.message);
+    }
+
+    if (postPrivacy === 'public') {
+      await notifyFollowers(userId, 'new_post', 'Membuat postingan baru', { postId: newPostId });
     }
 
     let postRows;

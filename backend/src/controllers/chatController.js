@@ -11,7 +11,7 @@ const sendMessage = async (req, res) => {
     } = req.body;
 
     const hasContent = Boolean(
-      text || voiceUrl || imageUrl || stickerId ||
+      text || voiceUrl || imageUrl || videoUrl || stickerId ||
       documentUrl || (locationName && latitude != null && longitude != null) || pollId
     );
     if (!hasContent) {

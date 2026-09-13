@@ -2,6 +2,7 @@ const fs = require('fs');
 const { pool } = require('../models/db');
 const { toPublicMediaUrl } = require('../middleware/postUpload');
 const { computeVerifiedBadge, formatNumber } = require('./authController');
+const { notifyFollowers } = require('../routes/notifications');
 
 const getVideoDuration = (filePath) => {
   return new Promise((resolve) => {
@@ -84,6 +85,7 @@ const uploadStory = async (req, res) => {
     );
 
     const storyId = result.insertId || result[0]?.id;
+    await notifyFollowers(userId, 'new_story', 'Membagikan story baru');
     const story = await (async () => {
       const [rows] = await pool.query(
         `SELECT s.*, u.username, u.display_name, u.avatar_url, u.is_verified 
@@ -110,6 +112,18 @@ const getStoriesFeed = async (req, res) => {
     }
 
     // Get stories from users being followed + own stories (within 24 hours)
+    const [access] = await pool.query(
+      `SELECT 1
+       FROM users target
+       WHERE target.id = $1
+         AND ($2 = target.id OR EXISTS (
+           SELECT 1 FROM follows f
+           WHERE f.follower_id = $2 AND f.following_id = target.id
+         ))`,
+      [targetUserId, currentUserId]
+    );
+    if (!access.length) return res.status(403).json({ message: 'Story hanya dapat dilihat oleh pemilik atau follower' });
+
     const [stories] = await pool.query(
       `SELECT s.*, u.username, u.display_name, u.avatar_url, u.is_verified,
               (SELECT COUNT(*) FROM story_views WHERE story_id = s.id) as views_count
@@ -181,7 +195,16 @@ const viewStory = async (req, res) => {
     }
 
     // Check if story exists
-    const [storyCheck] = await pool.query('SELECT id FROM stories WHERE id = $1', [storyId]);
+    const [storyCheck] = await pool.query(
+      `SELECT s.id, s.user_id
+       FROM stories s
+       WHERE s.id = $1
+         AND (s.user_id = $2 OR EXISTS (
+           SELECT 1 FROM follows f
+           WHERE f.follower_id = $2 AND f.following_id = s.user_id
+         ))`,
+      [storyId, userId]
+    );
     if (!storyCheck || !storyCheck.length) {
       return res.status(404).json({ message: 'Story tidak ditemukan' });
     }

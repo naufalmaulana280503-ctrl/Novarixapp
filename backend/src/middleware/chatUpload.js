@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const MAX_DOC_BYTES = 50 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_VOICE_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 
 const ALLOWED_DOC_MIME = [
   'application/pdf',
@@ -78,7 +79,7 @@ const upload = multer({
   fileFilter,
   limits: {
     files: 1,
-    fileSize: Math.max(MAX_DOC_BYTES, MAX_IMAGE_BYTES, MAX_VOICE_BYTES),
+    fileSize: MAX_VIDEO_BYTES,
   },
 });
 
@@ -120,5 +121,6 @@ module.exports = {
   MAX_DOC_BYTES,
   MAX_IMAGE_BYTES,
   MAX_VOICE_BYTES,
+  MAX_VIDEO_BYTES,
   publicUploadsRoot,
 };
