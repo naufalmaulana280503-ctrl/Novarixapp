@@ -8,6 +8,8 @@ import MessageActions from '../components/MessageActions'
 import { useToast } from '../context/ToastContext'
 import signaling from '../services/signalingClient'
 import { ICE_SERVERS } from '../services/webrtc'
+import { useLanguage } from '../context/LanguageContext'
+import { decryptMessageText, encryptMessageText } from '../utils/messageCrypto'
 
 import {
   MessageCircle, Phone, Video, Plus, Search,
@@ -168,6 +170,7 @@ const MessageBubbleContent = ({ m, onPlayVoice }) => {
 }
 
 const Chat = () => {
+  const { t } = useLanguage()
   const { userId } = useParams()
   const [conversations, setConversations] = useState([])
   const [messages, setMessages] = useState([])
@@ -282,6 +285,11 @@ const Chat = () => {
   useEffect(() => {
     const onNewDM = ({ fromUserId, fromDisplayName, message, timestamp }) => {
       const fuid = String(fromUserId)
+      decryptMessageText(message, fuid, currentUser?.id).then((plainText) => {
+        if (plainText === message && message?.startsWith('nvx:v1:')) return
+        setMessages(prev => prev.map(item => item.isRealtime && item.text === message ? { ...item, text: plainText } : item))
+        setConversations(prev => prev.map(item => String(item.userId) === fuid ? { ...item, lastMessage: plainText } : item))
+      })
       if (selectedConversation && String(selectedConversation) === fuid) {
         setMessages(prev => {
           if (prev.some(m => String(m.senderId) === fuid && m.text === message && Math.abs(new Date(m.createdAt || 0) - new Date(timestamp)) < 2000)) return prev
@@ -317,7 +325,7 @@ const Chat = () => {
     }
     signaling.on('chat:newDM', onNewDM)
     return () => signaling.off('chat:newDM', onNewDM)
-  }, [selectedConversation])
+  }, [selectedConversation, currentUser?.id])
 
   // ============ SELECT CONVERSATION WHEN URL CHANGES ============
   useEffect(() => {
@@ -341,7 +349,10 @@ const Chat = () => {
   const fetchMessages = async (targetUserId) => {
     try {
       const res = await api.get(`/chat/messages/${targetUserId}`)
-      const msgs = (res.data.messages || []).slice().reverse()
+      const msgs = await Promise.all((res.data.messages || []).slice().reverse().map(async (message) => ({
+        ...message,
+        text: await decryptMessageText(message.text, targetUserId, currentUser?.id),
+      })))
       setMessages(msgs)
     } catch (err) {
       console.error('Failed to fetch messages:', err)
@@ -381,12 +392,16 @@ const Chat = () => {
     setShowAttachMenu(false)
 
     try {
+      const encryptedText = payload.text
+        ? await encryptMessageText(payload.text, selectedConversation, currentUser?.id)
+        : payload.text
       const res = await api.post(`/chat/messages/${selectedConversation}`, {
         ...payload,
+        text: encryptedText,
         replyToId: replyingTo?.id || payload.replyToId || null,
       })
       setMessages(prev => prev.map(m => m.id === temporaryId
-        ? { ...m, ...(res.data || {}), id: res.data?.id || m.id, isPending: false, sent: true }
+        ? { ...m, ...(res.data || {}), text: payload.text ?? m.text, id: res.data?.id || m.id, isPending: false, sent: true }
         : m))
       setReplyingTo(null)
       try {
@@ -412,8 +427,9 @@ const Chat = () => {
     const text = message.text !== undefined ? message.text : window.prompt('Edit pesan', '')
     if (!text || text.trim() === message.text) return
     try {
-      const { data } = await api.put(`/chat/messages/${message.id}`, { text: text.trim() })
-      setMessages(prev => prev.map(item => item.id === message.id ? { ...item, text: data.text, editedAt: data.editedAt } : item))
+      const encryptedText = await encryptMessageText(text.trim(), selectedConversation, currentUser?.id)
+      const { data } = await api.put(`/chat/messages/${message.id}`, { text: encryptedText })
+      setMessages(prev => prev.map(item => item.id === message.id ? { ...item, text: text.trim(), editedAt: data.editedAt } : item))
     } catch (err) {
       addToast({ type: 'error', text: err?.response?.data?.message || 'Gagal edit pesan' })
     }
@@ -468,7 +484,8 @@ const Chat = () => {
     }])
     setShowStickers(false)
     try {
-      await api.post(`/chat/messages/${selectedConversation}`, { text: stk })
+      const encryptedText = await encryptMessageText(stk, selectedConversation, currentUser?.id)
+      await api.post(`/chat/messages/${selectedConversation}`, { text: encryptedText })
       setMessages(prev => prev.map(m => m.id === temporaryId ? { ...m, isPending: false } : m))
       try { signaling.emit('chat:sendDM', { receiverId: selectedConversation, message: stk }) } catch {}
     } catch {
